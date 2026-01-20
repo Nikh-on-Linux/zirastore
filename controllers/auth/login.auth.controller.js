@@ -7,7 +7,7 @@ class Login {
         const client = await pool.connect();
         try {
             const response = await client.query(
-                "SELECT password FROM users WHERE email=$1",
+                "SELECT password , user_id FROM users WHERE email=$1",
                 [email]
             );
 
@@ -17,9 +17,10 @@ class Login {
             }
 
             const isCorrect = await bcrypt.compare(password, response.rows[0].password);
-
+            
             if (isCorrect) {
                 // res.status(200).json({ message: "Authenticated Successfully", suc: true });
+                req.body.user_id = response.rows[0].user_id;
                 next();
                 return;
             }
