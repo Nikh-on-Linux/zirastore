@@ -4,6 +4,7 @@ CREATE TABLE files (
     object_name VARCHAR(255) NOT NULL,
     filename VARCHAR(255) NOT NULL,
     mimetype VARCHAR(255),
+    encoding VARCHAR(255),
     pathname VARCHAR(1024) NOT NULL,
     file_size BIGINT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()

@@ -1,5 +1,8 @@
 import { Router } from "express";
 import express from "express";
+import path from "path";
+import fs from "fs";
+import os from "os";
 
 // Middleware imports
 import JwtAuth from "../middlewares/auth/jwt.auth.middleware.js";
@@ -14,7 +17,6 @@ router.use(express.json());
 router.use(JwtAuth.verifyToken);
 
 // Endpoints
-// router.get("/");
 router.post("/",uploadFile);
 
 export default router;

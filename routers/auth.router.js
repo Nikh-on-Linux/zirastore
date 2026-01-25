@@ -22,7 +22,6 @@ router.use(express.json({
     type: "application/json"
 }));
 
-
 //endpoints
 router.get('/', (req, res) => { res.send("This is a router") });
 router.post('/register', emailRegisterSchema, passwordEncrypt, register.email);
