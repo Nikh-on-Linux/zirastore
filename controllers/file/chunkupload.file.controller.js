@@ -2,7 +2,7 @@ import { v7 as uuidv7 } from "uuid";
 import fs from "fs";
 import path from "path";
 import { pool } from "../../configs/database.config.js";
-import { getFinalObjectPath, getTmpUploadDir } from "../../configs/utils/storage.util.config.js";
+import { getFinalObjectPath, getTmpUploadDir, getFileHash } from "../../configs/utils/storage.util.config.js";
 import { pipeline } from "stream/promises";
 
 export async function initiateUpload(req, res) {
@@ -71,7 +71,7 @@ export async function uploadPart(req, res) {
 }
 
 export async function completeUpload(req, res) {
-    const { uploadId } = req.params;
+    const { uploadId, uploadfilehash } = req.params;
 
     const client = await pool.connect();
 
@@ -102,13 +102,35 @@ export async function completeUpload(req, res) {
         const writeStream = fs.createWriteStream(finalPath);
 
         for (const part of partsRes.rows) {
-            const readStream = fs.createReadStream(part.file_path);
-            await pipeline(readStream, writeStream, { end: false });
+
+            await new Promise((resolve, reject) => {
+                const readStream = fs.createReadStream(part.file_path);
+
+                readStream.on("error", reject);
+                writeStream.on("error", reject);
+
+                readStream.on("end", resolve);
+
+                readStream.pipe(writeStream, { end: false });
+            });
         }
+
 
         writeStream.end();
 
-        await new Promise(resolve => writeStream.on("finish", resolve));
+        await new Promise((resolve, reject) => {
+            writeStream.on("finish", resolve);
+            writeStream.on("error", reject);
+        });
+
+        // Generate uploaded file hash
+        const fileHash = await getFileHash(objectId);
+        console.log(fileHash);
+
+        if (fileHash != uploadfilehash) {
+            res.status(500).json({ message: "File corrupted during uploading.", suc: false });
+            return;
+        }
 
         await client.query("BEGIN");
 

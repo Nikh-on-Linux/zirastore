@@ -21,5 +21,5 @@ router.use(express.json());
 router.post("/",uploadFile);
 router.post("/init", initiateUpload);
 router.put("/:uploadId/parts/:partNumber", express.raw({ type: "*/*", limit: "100mb" }), uploadPart);
-router.post("/:uploadId/complete", completeUpload);
+router.post("/:uploadId/complete/:uploadfilehash", completeUpload);
 export default router;
