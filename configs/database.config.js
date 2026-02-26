@@ -9,7 +9,7 @@ export const pool = new Pool({
 })
 
 pool.on('connect', async(con) => {
-    console.log("Yeah this")
+    console.log("Database connected");
 })
 
 try{
