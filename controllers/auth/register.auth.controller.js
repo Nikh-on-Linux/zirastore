@@ -3,13 +3,13 @@ import { pool } from "../../configs/database.config.js";
 class Register {
 
     async email(req, res, next) {
-        const { name, email, hashPassword, provider, image } = req.body;
+        const { name, email, hashPassword, image } = req.body;
         const client = await pool.connect();
 
         try {
             const result = await client.query(
                 "INSERT INTO users(name,email,password,provider,image) VALUES($1,$2,$3,$4,$5) RETURNING *",
-                [name, email, hashPassword, provider, image]
+                [name, email, hashPassword, "email", image]
             );
             res.status(201).json({ success: true, user: result.rows[0] });
         } catch (err) {

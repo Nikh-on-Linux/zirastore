@@ -1,4 +1,5 @@
 import AuthSchema from "../../configs/schemas/auth.schemas.config.js";
+import z from "zod";
 
 export function emailRegisterSchema(req, res, next) {
 

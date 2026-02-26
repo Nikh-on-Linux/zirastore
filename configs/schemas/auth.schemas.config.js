@@ -8,7 +8,6 @@ class AuthSchema {
             name: z.string().nonempty(),
             password: z.string().nonempty(),
             image: z.string().nullable().optional(),
-            provider: z.literal(['email', 'google'])
         })
 
         this.emailLoginSchema = z.object({

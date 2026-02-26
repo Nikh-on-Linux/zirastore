@@ -5,10 +5,12 @@ import busboy from "busboy";
 import { pool } from "./configs/database.config.js";
 import authrouter from "./routers/auth.router.js";
 import uploadrouter from "./routers/upload.router.js";
+import streamRouter from "./routers/stream.router.js";
 
 const app = express();
 app.use('/auth', authrouter);
 app.use('/upload',uploadrouter);
+app.use('/stream',streamRouter);
 app.get('/', (req, res) => {
     res.send('Hellow');
 })

@@ -4,50 +4,56 @@ configDotenv();
 
 class jwtAuth {
     async assignToken(req, res, next) {
-        const { email , user_id } = req.body;
+        const { email, user_id } = req.body;
 
-        if(!email || typeof email != 'string'){
-            res.status(401).json({message:"Invalid request",suc:false});
+        if (!email || typeof email != 'string') {
+            res.status(401).json({ message: "Invalid request", success: false });
             return
         }
 
         try {
             const token = await jwt.sign({
                 email: email,
-                user_id:user_id
+                user_id: user_id
             }, process.env.JWT_SECRETE, { algorithm: "HS256", expiresIn: "2h" }); // IMPLEMENT RS256 later
 
-            res.status(200).json({ message: "Authenticated successfully", suc: true, token });
+            res.status(200).json({ message: "Authenticated successfully", success: true, token });
         }
-        catch(err){
-            res.status(500).json({message:"Internal Server Error",suc:false});
+        catch (err) {
+            res.status(500).json({ message: "Internal Server Error", success: false });
             console.log(err);
         }
 
     }
 
-    async verifyToken(req,res,next){
+    async verifyToken(req, res, next) {
         const token = req.headers['authorization'].split(" ")[1];
 
-        if(token == null){
-            res.statu(401).json({message:"Invalide jwt request",suc:false});
+        if (token == null) {
+            res.statu(401).json({ message: "Invalide jwt request", suc: false });
             return;
         }
 
-        jwt.verify(token,process.env.JWT_SECRETE,(err,decode)=>{
-            
-            if(err){
-                res.status(403).json({message:"Invalid token",suc:false});
+        jwt.verify(token, process.env.JWT_SECRETE, (err, decode) => {
+
+            if (err) {
+                res.status(403).json({ message: "Invalid token", suc: false });
                 return;
             }
 
-            req.body = {
-                email:decode.email,
-                user_id:decode.user_id
+            if (req.body) {
+                req.body['email'] = decode.email;
+                req.body['user_id'] = decode.user_id;
+                next();
             }
+            else {
+                req.body = {
+                    email: decode.email,
+                    user_id: decode.user_id
+                }
 
-            next();
-
+                next();
+            }
         })
     }
 }
