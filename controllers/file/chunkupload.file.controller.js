@@ -5,9 +5,31 @@ import { pool } from "../../configs/database.config.js";
 import { getFinalObjectPath, getTmpUploadDir, getFileHash } from "../../configs/utils/storage.util.config.js";
 import { pipeline } from "stream/promises";
 
+async function pathResolver(pathname,user_id) {
+    if (pathname === "/") {
+        const root = await pool.query(
+            `SELECT folder_id 
+                 FROM folders 
+                 WHERE user_id=$1 AND is_root=true`,
+            [user_id]
+        );
+
+        if (root.rowCount === 0) {
+            return res.status(400).json({ message: "Root folder missing" });
+        }
+
+        const folderId = root.rows[0].folder_id;
+        return folderId;
+
+    } else {
+        // Resolve nested path here using recursive CTE
+        // If not found → reject
+    }
+}
+
 export async function initiateUpload(req, res) {
     try {
-        const { filename, mimetype, size, pathname, user_id } = req.body;
+        const { filename, mimetype, size, pathname = "/", user_id } = req.body;
 
         if (!filename || !user_id) {
             return res.status(400).json({ message: "Missing required fields" });
@@ -15,15 +37,23 @@ export async function initiateUpload(req, res) {
 
         const uploadId = uuidv7();
 
+        const folder_id = await pathResolver(pathname,user_id);
+
         await pool.query(
-            `INSERT INTO uploads(upload_id, user_id, filename, mimetype, pathname, total_size)
-             VALUES($1,$2,$3,$4,$5,$6)`,
-            [uploadId, user_id, filename, mimetype, pathname || "/", size || null]
+            `INSERT INTO uploads(
+                upload_id, 
+                user_id, 
+                folder_id,
+                filename, 
+                mimetype, 
+                total_size
+            )
+            VALUES($1,$2,$3,$4,$5,$6)`,
+            [uploadId, user_id, folder_id, filename, mimetype, size || null]
         );
 
-        res.status(201).json({
-            upload_id: uploadId
-        });
+        res.status(201).json({ upload_id: uploadId });
+
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Init failed" });
@@ -86,6 +116,7 @@ export async function completeUpload(req, res) {
         }
 
         const upload = uploadRes.rows[0];
+        const pathname = upload.folder_id;
 
         const partsRes = await client.query(
             "SELECT * FROM upload_parts WHERE upload_id=$1 ORDER BY part_number ASC",
@@ -132,17 +163,19 @@ export async function completeUpload(req, res) {
             return;
         }
 
+        const folder_id = await pathResolver("/",upload.user_id);
+
         await client.query("BEGIN");
 
         await client.query(
-            `INSERT INTO files(user_id, object_name, filename, mimetype, pathname, file_size)
+            `INSERT INTO files(user_id, object_name, filename, mimetype, folder_id, file_size)
              VALUES($1,$2,$3,$4,$5,$6)`,
             [
                 upload.user_id,
                 objectId,
                 upload.filename,
                 upload.mimetype,
-                upload.pathname,
+                folder_id,
                 partsRes.rows.reduce((sum, p) => sum + Number(p.size), 0)
             ]
         );

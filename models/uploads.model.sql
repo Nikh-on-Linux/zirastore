@@ -3,7 +3,7 @@ CREATE TABLE uploads (
     user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     filename VARCHAR(255) NOT NULL,
     mimetype VARCHAR(255),
-    pathname VARCHAR(1024) NOT NULL,
+    folder_id UUID REFERENCES folders(folder_id),
     total_size BIGINT,
     status VARCHAR(50) DEFAULT 'initiated',
     created_at TIMESTAMPTZ DEFAULT now()

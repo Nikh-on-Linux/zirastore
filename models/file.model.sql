@@ -5,7 +5,7 @@ CREATE TABLE files (
     filename VARCHAR(255) NOT NULL,
     mimetype VARCHAR(255),
     encoding VARCHAR(255),
-    pathname VARCHAR(1024) NOT NULL,
+    folder_id UUID REFERENCES folders(folder_id),
     file_size BIGINT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
