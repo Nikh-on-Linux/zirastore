@@ -23,3 +23,24 @@ export function emailRegisterSchema(req, res, next) {
     }
 
 }
+
+export function agentRegisterSchema(req,res,next){
+    try{
+        AuthSchema.agentRegisterSchema.parse(req.body);
+        next();
+    }
+    catch(error){
+        if(error instanceof z.ZodError){
+            res.status(422).json({
+                message: "Invalid input data",
+                success: false
+            })
+            return
+        }
+        console.log(error);
+        res.status(500).json({
+            message: "Internal server error",
+            success: false
+        })
+    }
+}

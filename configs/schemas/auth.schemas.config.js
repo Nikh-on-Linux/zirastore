@@ -10,11 +10,16 @@ class AuthSchema {
             image: z.string().nullable().optional(),
         })
 
-        this.emailLoginSchema = z.object({
-            email:z.email(),
-            password:z.string()
+        this.agentRegisterSchema = z.object({
+            name: z.string().nonempty(),
+            target_folder: z.string().nonempty(),
+            scopes: z.enum(['r', 'w', 'rw', 'rwx']),
         })
 
+        this.emailLoginSchema = z.object({
+            email: z.email(),
+            password: z.string()
+        })
     }
 }
 
