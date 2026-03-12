@@ -4,7 +4,7 @@ import express from "express";
 // Middleware imports
 import { emailRegisterSchema, agentRegisterSchema } from "../middlewares/auth/register.auth.middleware.js";
 import { emailLoginSchema } from "../middlewares/auth/login.auth.middleware.js";
-import { passwordEncrypt } from "../middlewares/auth/utils.auth.middleware.js";
+import { passwordEncrypt, agentVerification } from "../middlewares/auth/utils.auth.middleware.js";
 import JwtAuth from "../middlewares/auth/jwt.auth.middleware.js";
 
 // Controllers import 
@@ -24,8 +24,9 @@ router.use(express.json({
 
 //endpoints
 router.get('/', (req, res) => { res.send("This is a router") });
-router.post('/register', emailRegisterSchema, passwordEncrypt, register.email);
-router.post('/register/agent',agentRegisterSchema, JwtAuth.verifyToken,register.agent);
+router.post('/register', agentVerification, emailRegisterSchema, passwordEncrypt, register.email);
+router.post('/register/agent', agentRegisterSchema, JwtAuth.verifyToken, register.agent);
 router.post('/login', emailLoginSchema, Login.email, JwtAuth.assignToken);
+router.get("/agent", agentVerification);
 
 export default router;

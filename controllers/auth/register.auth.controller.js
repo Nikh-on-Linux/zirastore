@@ -5,16 +5,30 @@ import { generateApiKey } from "../../configs/utils/apikey.util.config.js";
 class Register {
 
     async email(req, res, next) {
-        const { name, email, hashPassword, image, agent_id } = req.body;
+        const { name, email, hashPassword, image, agent } = req.body;
+
+        if(agent.scopes != "rw+"){
+            res.status(403).json({message:"Access denied, permission not granted", success:false});
+            return;
+        }
         const client = await pool.connect();
 
         try {
-            const result = await client.query(
-                "INSERT INTO users(name,email,password,provider,image) VALUES($1,$2,$3,$4,$5) RETURNING *",
-                [name, email, hashPassword, "email", image]
-            );
 
-            console.log(result.rows[0]);
+            var result;
+            if (!agent_id) {
+                result = await client.query(
+                    "INSERT INTO users(name,email,password,provider,image) VALUES($1,$2,$3,$4,$5) RETURNING *",
+                    [name, email, hashPassword, "email", image]
+                );
+            }
+            else {
+                result = await client.query(
+                    "INSERT INTO users(name,email,password,provider,image,agent_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING *",
+                    [name, email, hashPassword, "email", image, agent.agent_id]
+                );
+            }
+
 
             const rootFolderId = await uuidv4();
 
