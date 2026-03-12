@@ -7,7 +7,7 @@ class Register {
     async email(req, res, next) {
         const { name, email, hashPassword, image, agent } = req.body;
 
-        if(agent.scopes != "rw+"){
+        if(agent.scopes != "rwx"){
             res.status(403).json({message:"Access denied, permission not granted", success:false});
             return;
         }
