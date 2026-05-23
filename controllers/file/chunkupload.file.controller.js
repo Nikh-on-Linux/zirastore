@@ -5,7 +5,7 @@ import { pool } from "../../configs/database.config.js";
 import { getFinalObjectPath, getTmpUploadDir, getFileHash } from "../../configs/utils/storage.util.config.js";
 import { pipeline } from "stream/promises";
 
-async function pathResolver(pathname,user_id) {
+async function pathResolver(pathname, user_id) {
     if (pathname === "/") {
         const root = await pool.query(
             `SELECT folder_id 
@@ -15,15 +15,59 @@ async function pathResolver(pathname,user_id) {
         );
 
         if (root.rowCount === 0) {
-            return res.status(400).json({ message: "Root folder missing" });
+            throw new Error("Root folder missing");
         }
 
         const folderId = root.rows[0].folder_id;
         return folderId;
 
     } else {
-        // Resolve nested path here using recursive CTE
-        // If not found → reject
+        // Parse pathname into segments and resolve using recursive CTE
+        const pathSegments = pathname.split('/').filter(seg => seg.length > 0);
+
+        if (pathSegments.length === 0) {
+            throw new Error("Invalid path");
+        }
+
+        const result = await pool.query(
+            `WITH RECURSIVE path_traversal AS (
+                -- Base case: start from root folder
+                SELECT 
+                    folder_id,
+                    folder_name,
+                    1 AS depth,
+                    $1::text[] AS path_segments,
+                    ARRAY[folder_name] AS traversed_path
+                FROM folders
+                WHERE user_id = $2 AND is_root = true
+
+                UNION ALL
+
+                -- Recursive case: find child folders matching path segments
+                SELECT 
+                    f.folder_id,
+                    f.folder_name,
+                    pt.depth + 1,
+                    pt.path_segments,
+                    pt.traversed_path || f.folder_name
+                FROM path_traversal pt
+                JOIN folders f ON f.parent_id = pt.folder_id
+                WHERE f.user_id = $2 
+                  AND f.folder_name = pt.path_segments[pt.depth + 1]
+                  AND pt.depth < array_length(pt.path_segments, 1)
+            )
+            SELECT folder_id
+            FROM path_traversal
+            WHERE depth = array_length($1::text[], 1)
+            LIMIT 1`,
+            [pathSegments, user_id]
+        );
+
+        if (result.rowCount === 0) {
+            throw new Error("Path not found");
+        }
+
+        return result.rows[0].folder_id;
     }
 }
 

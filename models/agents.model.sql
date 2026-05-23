@@ -1,8 +1,12 @@
-CREATE TYPE scope AS ENUM('r','w','rw','rwx');
+DO $$ BEGIN
+    CREATE TYPE scope AS ENUM('r','w','rw','rwx');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 CREATE TABLE agents(
     agent_id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
-    created_by INTEGER REFERENCES users(user_id),
     scopes scope,
     target_folder text
 );

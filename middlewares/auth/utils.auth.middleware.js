@@ -43,6 +43,7 @@ export async function agentVerification(req, res, next) {
             [keyId]
         )
 
+        console.log(result.rows);
 
         if (result.rowCount == 0) {
             res.status(404).json({ message: "Invalid api key", success: false });

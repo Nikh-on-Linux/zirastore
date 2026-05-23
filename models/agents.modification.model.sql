@@ -1,0 +1,2 @@
+ALTER TABLE IF EXISTS agents
+ADD COLUMN created_by INTEGER REFERENCES users(user_id);
