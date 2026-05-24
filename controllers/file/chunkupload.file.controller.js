@@ -75,7 +75,7 @@ export { pathResolver };
 
 export async function initiateUpload(req, res) {
     try {
-        const { filename, mimetype, size, pathname = "/", user_id } = req.body;
+        const { filename, mimetype, size, pathname, user_id } = req.body;
 
         if (!filename || !user_id) {
             return res.status(400).json({ message: "Missing required fields" });
@@ -209,7 +209,7 @@ export async function completeUpload(req, res) {
             return;
         }
 
-        const folder_id = await pathResolver("/",upload.user_id);
+        // const folder_id = await pathResolver(uploadRes.rows[0].folder_id, upload.user_id);
 
         await client.query("BEGIN");
 
@@ -221,7 +221,7 @@ export async function completeUpload(req, res) {
                 objectId,
                 upload.filename,
                 upload.mimetype,
-                folder_id,
+                uploadRes.rows[0].folder_id,
                 partsRes.rows.reduce((sum, p) => sum + Number(p.size), 0)
             ]
         );

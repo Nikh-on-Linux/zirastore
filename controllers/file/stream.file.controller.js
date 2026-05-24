@@ -1,18 +1,22 @@
 import { pool } from "../../configs/database.config.js";
 import { getFinalObjectPath } from "../../configs/utils/storage.util.config.js";
+import { pathResolver } from "./chunkupload.file.controller.js";
 import fs from "fs";
 
 class StreamFile {
 
     async fileInfo(req, res) {
-        const { user_id } = req.body;
+        const { user_id, path } = req.body;
         const { filename } = req.params;
 
+        const folderId = await pathResolver(path || "/", user_id);
+
         const client = await pool.connect();
+        console.log(folderId);
         try {
             const dbResponse = await client.query(
-                'SELECT object_name FROM files WHERE user_id=$1 and filename=$2',
-                [user_id, filename]
+                'SELECT object_name FROM files WHERE user_id=$1 and filename=$2 and folder_id=$3',
+                [user_id, filename, folderId]
             )
 
             if (dbResponse.rowCount == 0) {
