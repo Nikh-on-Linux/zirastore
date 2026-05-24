@@ -16,7 +16,7 @@ class Register {
         try {
 
             var result;
-            if (!agent_id) {
+            if (!agent?.agent_id) {
                 result = await client.query(
                     "INSERT INTO users(name,email,password,provider,image) VALUES($1,$2,$3,$4,$5) RETURNING *",
                     [name, email, hashPassword, "email", image]

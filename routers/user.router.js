@@ -10,5 +10,6 @@ router.get("/",(req,res)=>{
     res.send("User api endpoint");
 })
 router.get("/me",JWtAuth.verifyToken,Dashboard.recentFiles)
+router.post("/createfolder/:folderName", JWtAuth.verifyToken, Dashboard.createFolder);
 
 export default router;

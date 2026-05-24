@@ -94,8 +94,8 @@ async function setupDatabase() {
 
         console.log("✅ Database setup completed successfully!");
         console.log("\n🔑 Root Agent API Key (store this securely, it won't be shown again):");
-        console.log(apikey.secret);
-        
+        console.log(apikey.fullKey);
+
         process.exit(0);
 
     } catch (err) {

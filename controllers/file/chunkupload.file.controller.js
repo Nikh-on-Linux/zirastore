@@ -35,9 +35,9 @@ async function pathResolver(pathname, user_id) {
                 SELECT 
                     folder_id,
                     folder_name,
-                    1 AS depth,
+                    0 AS depth,
                     $1::text[] AS path_segments,
-                    ARRAY[folder_name] AS traversed_path
+                    ARRAY[folder_name]::text[] AS traversed_path
                 FROM folders
                 WHERE user_id = $2 AND is_root = true
 
@@ -49,7 +49,7 @@ async function pathResolver(pathname, user_id) {
                     f.folder_name,
                     pt.depth + 1,
                     pt.path_segments,
-                    pt.traversed_path || f.folder_name
+                    (pt.traversed_path || ARRAY[f.folder_name]::text[])::text[] AS traversed_path
                 FROM path_traversal pt
                 JOIN folders f ON f.parent_id = pt.folder_id
                 WHERE f.user_id = $2 
@@ -70,6 +70,8 @@ async function pathResolver(pathname, user_id) {
         return result.rows[0].folder_id;
     }
 }
+
+export { pathResolver };
 
 export async function initiateUpload(req, res) {
     try {
