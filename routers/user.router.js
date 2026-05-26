@@ -13,5 +13,6 @@ router.get("/",(req,res)=>{
 router.get("/me",JWtAuth.verifyToken,Dashboard.recentFiles)
 router.post("/createfolder/:folderName", agentVerification, Dashboard.createFolder);
 router.post("/move/folder",agentVerification, Dashboard.moveFolder);
+router.post("/move/file/:filename",agentVerification , Dashboard.moveFile);
 
 export default router;

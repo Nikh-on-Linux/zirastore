@@ -76,7 +76,7 @@ class Dashboard {
             // Create the new folder
             const response = await client.query(
                 'INSERT INTO folders (user_id, agent_id, parent_id, folder_name, is_root) VALUES ($1, $2, $3, $4, false) RETURNING folder_id, folder_name, created_at',
-                [user_id,agent?.agent_id, parentId, folderName]
+                [user_id, agent?.agent_id, parentId, folderName]
             );
 
             const folderData = response.rows[0];
@@ -124,6 +124,47 @@ class Dashboard {
         finally {
             await client.release();
         }
+    }
+
+    async moveFile(req, res) {
+        const { user_id, sourcePath, destinationPath, agent } = req.body;
+        const { filename } = req.params
+
+        const client = await pool.connect();
+
+        try {
+            const sourceId = await pathResolver(sourcePath, user_id || agent.agent_id);
+            const destinationId = await pathResolver(destinationPath, user_id || agent.agent_id);
+
+            const fileExist = await client.query(
+                `SELECT file_id FROM files WHERE user_id=$1 and folder_id=$2 and filename=$3 `,
+                [user_id || agent?.agent_id, sourceId, filename]
+            )
+
+            if (fileExist.rowCount == 0) {
+                res.status(404).json({ message: "File not found in the provided path", suc: false });
+                return;
+            }
+
+            await client.query("BEGIN");
+
+            await client.query(
+                `UPDATE files SET folder_id=$1 WHERE file_id=$2`,
+                [destinationId, fileExist?.rows[0].file_id]
+            )
+
+            await client.query("COMMIT");
+
+            res.status(200).json({ message: "File moved in the target folder", suc: true });
+        }
+        catch (error) {
+            res.status(500).json({ message: `Internal server error: ${error.message}`, suc: false });
+            await client.query("ROLLBACK");
+        }
+        finally {
+            await client.release();
+        }
+
     }
 
 }
