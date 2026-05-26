@@ -3,8 +3,12 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE folders (
     folder_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
-    user_id INTEGER NOT NULL
+    user_id INTEGER
         REFERENCES users(user_id)
+        ON DELETE CASCADE,
+
+    agent_id INTEGER
+        REFERENCES agents(agent_id)
         ON DELETE CASCADE,
 
     parent_id UUID NOT NULL,
@@ -22,6 +26,13 @@ CREATE TABLE folders (
 
     CONSTRAINT unique_folder_per_parent
         UNIQUE (user_id, parent_id, folder_name)
+);
+
+ALTER TABLE folders
+ADD CONSTRAINT folder_owner_presence_check
+CHECK (
+    user_id IS NOT NULL
+    OR agent_id IS NOT NULL
 );
 
 ALTER TABLE folders

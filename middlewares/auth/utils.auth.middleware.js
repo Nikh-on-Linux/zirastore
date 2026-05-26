@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { pool } from "../../configs/database.config.js";
 import { hashSecret, parseApiKey } from "../../configs/utils/apikey.util.config.js";
+import JWTAuth from "./jwt.auth.middleware.js";
 
 export async function passwordEncrypt(req, res, next) {
 
@@ -25,6 +26,14 @@ export async function agentVerification(req, res, next) {
     }
 
     const apikey = authHeader.split(" ")[1];
+
+    if (!apikey.includes("ox_agent_")) {
+
+        JWTAuth.verifyToken(req, res, next);
+
+        return;
+    }
+
     const parsed = parseApiKey(apikey);
 
     if (!parsed) {

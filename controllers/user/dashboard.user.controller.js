@@ -47,15 +47,16 @@ class Dashboard {
 
     async createFolder(req, res) {
 
-        const { user_id, path } = req.body;
+        const { user_id, path, agent } = req.body;
         const { folderName } = req.params;
         const client = await pool.connect();
+        console.log(user_id);
 
         try {
             // Resolve the path to get parent folder ID
             let parentId;
             try {
-                parentId = await pathResolver(path || "/", user_id);
+                parentId = await pathResolver(path || "/", user_id || agent.agent_id);
             } catch (err) {
                 res.status(404).json({ message: err.message, suc: false });
                 return;
@@ -74,8 +75,8 @@ class Dashboard {
 
             // Create the new folder
             const response = await client.query(
-                'INSERT INTO folders (user_id, parent_id, folder_name, is_root) VALUES ($1, $2, $3, false) RETURNING folder_id, folder_name, created_at',
-                [user_id, parentId, folderName]
+                'INSERT INTO folders (user_id, agent_id, parent_id, folder_name, is_root) VALUES ($1, $2, $3, $4, false) RETURNING folder_id, folder_name, created_at',
+                [user_id,agent?.agent_id, parentId, folderName]
             );
 
             const folderData = response.rows[0];
@@ -97,6 +98,32 @@ class Dashboard {
             client.release();
         }
 
+    }
+
+    async moveFolder(req, res) {
+        const { user_id, sourcePath, destinationPath } = req.body;
+        const client = await pool.connect();
+        try {
+
+            const folderId = await pathResolver(sourcePath, user_id);
+            const destinationId = await pathResolver(destinationPath, user_id);
+
+            await client.query("BEGIN");
+
+            await client.query(`UPDATE folders SET parent_id = $1 WHERE user_id=$3 and folder_id = $2`,
+                [destinationId, folderId, user_id]);
+
+            await client.query("COMMIT");
+
+            res.status(200).json({ message: "Folder moved successfully", suc: true });
+        }
+        catch (error) {
+            await client.query("ROLLBACK");
+            res.status(500).json({ message: error.message, suc: false });
+        }
+        finally {
+            await client.release();
+        }
     }
 
 }
