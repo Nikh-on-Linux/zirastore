@@ -5,10 +5,10 @@ import { generateApiKey } from "../../configs/utils/apikey.util.config.js";
 class Register {
 
     async email(req, res, next) {
-        const { name, email, hashPassword, image, agent } = req.body;
+        const { name, email, hashPassword, image, context } = req.body;
 
-        if(agent.scopes != "rwx"){
-            res.status(403).json({message:"Access denied, permission not granted", success:false});
+        if (context.scopes != "rwx") {
+            res.status(403).json({ message: "Access denied, permission not granted", success: false });
             return;
         }
         const client = await pool.connect();
@@ -25,7 +25,7 @@ class Register {
             else {
                 result = await client.query(
                     "INSERT INTO users(name,email,password,provider,image,agent_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING *",
-                    [name, email, hashPassword, "email", image, agent.agent_id]
+                    [name, email, hashPassword, "email", image, context.agent_id]
                 );
             }
 
@@ -58,7 +58,16 @@ class Register {
     // TODO: Google provider & Microsoft Provider
 
     async agent(req, res, next) {
-        const { name, target_folder, scopes, user_id } = req.body;
+        const { name, target_folder, scopes, context } = req.body;
+
+        if (context.type == "agent") {
+            res.status(403).json({ message: "Request denied: Agents cannot create other agents.", suc: false });
+
+            return;
+        }
+
+        const user_id = context.user_id;
+
         const client = await pool.connect();
 
         try {

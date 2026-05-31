@@ -48,11 +48,11 @@ export async function agentVerification(req, res, next) {
 
     try {
         const result = await client.query(
-            `SELECT k.agent_id, k.secret_hash, a.scopes FROM keys k INNER JOIN agents a ON k.key_id=$1 AND a.agent_id = k.agent_id`,
+            `SELECT k.agent_id, k.secret_hash, a.scopes, a.created_by FROM keys k INNER JOIN agents a ON k.key_id=$1 AND a.agent_id = k.agent_id`,
             [keyId]
         )
 
-        console.log(result.rows);
+        console.log(result.rows[0]);
 
         if (result.rowCount == 0) {
             res.status(404).json({ message: "Invalid api key", success: false });
@@ -60,7 +60,13 @@ export async function agentVerification(req, res, next) {
         }
 
         if (result.rows[0].secret_hash == inputHash) {
-            req.body ? req.body['agent'] = { agent_id: result.rows[0].agent_id, scopes: result.rows[0].scopes } : req["body"] = { agent: { agent_id: result.rows[0].agent_id, scopes: result.rows[0].scopes } };
+            const context = {
+                type: "agent",
+                user_id: result.rows[0].created_by,
+                agent_id: result.rows[0].agent_id,
+                scopes: result.rows[0].scopes
+            }
+            req.body ? req.body['context'] = context : req["body"] = { context: context };
         }
         else {
             res.status(403).json({ message: "Access denied", success: false });

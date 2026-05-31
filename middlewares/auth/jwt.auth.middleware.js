@@ -41,15 +41,21 @@ class jwtAuth {
                 return;
             }
 
+            const context = {
+                type:"user",
+                user_id: decode.user_id,
+                agent_id: null,
+                scopes: null,
+                email:decode.email 
+            }
+            
             if (req.body) {
-                req.body['email'] = decode.email;
-                req.body['user_id'] = decode.user_id;
+                req.body['context'] = context;
                 next();
             }
             else {
                 req.body = {
-                    email: decode.email,
-                    user_id: decode.user_id
+                    context: context
                 }
 
                 next();

@@ -14,7 +14,6 @@ class AuthSchema {
             name: z.string().nonempty(),
             target_folder: z.string().nonempty(),
             scopes: z.enum(['r', 'w', 'rw', 'rwx']),
-            agent_id:z.number().nonoptional()
         })
 
         this.emailLoginSchema = z.object({

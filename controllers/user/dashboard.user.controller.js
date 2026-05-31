@@ -3,12 +3,18 @@ import { pool } from "../../configs/database.config.js";
 class Dashboard {
 
     async recentFiles(req, res) {
-        const { user_id } = req.body;
+        const { context } = req.body;
+
+        if (context.type == "agent" && !context.scopes.includes("r")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
+            return;
+        }
+
         const client = await pool.connect();
         try {
             const response = await client.query(
                 'SELECT * FROM files WHERE user_id=$1 ORDER BY file_id DESC LIMIT 10',
-                [user_id]
+                [context.user_id]
             )
 
             if (response.rowCount == 0) {

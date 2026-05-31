@@ -10,7 +10,7 @@ async function pathResolver(pathname, user_id) {
         const root = await pool.query(
             `SELECT folder_id 
                  FROM folders 
-                 WHERE (user_id=$1 OR agent_id=$1) AND is_root=true`,
+                 WHERE user_id=$1 AND is_root=true`,
             [user_id]
         );
 
@@ -39,7 +39,7 @@ async function pathResolver(pathname, user_id) {
                     $1::text[] AS path_segments,
                     ARRAY[folder_name]::text[] AS traversed_path
                 FROM folders
-                WHERE (user_id = $2 OR agent_id = $2) AND is_root = true
+                WHERE user_id = $2 AND is_root = true
 
                 UNION ALL
 
@@ -52,7 +52,7 @@ async function pathResolver(pathname, user_id) {
                     (pt.traversed_path || ARRAY[f.folder_name]::text[])::text[] AS traversed_path
                 FROM path_traversal pt
                 JOIN folders f ON f.parent_id = pt.folder_id
-                                WHERE (f.user_id = $2 OR f.agent_id = $2)
+                                WHERE f.user_id = $2
                   AND f.folder_name = pt.path_segments[pt.depth + 1]
                   AND pt.depth < array_length(pt.path_segments, 1)
             )
@@ -75,13 +75,19 @@ export { pathResolver };
 
 export async function initiateUpload(req, res) {
     try {
-        const { filename, mimetype, size, pathname, user_id } = req.body;
+        const { filename, mimetype, size, pathname, context } = req.body;
 
-        if (!filename || !user_id) {
+        if(context.type == "agent" && !context.scopes.includes("w")){
+            res.status(403).json({message:"Forbidden key: Insufficient access rights", suc:false});
+            return;
+        }
+
+        if (!filename || !context.user_id) {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
         const uploadId = uuidv7();
+        const user_id = context.user_id;
 
         const folder_id = await pathResolver(pathname,user_id);
 

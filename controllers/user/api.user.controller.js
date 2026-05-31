@@ -5,15 +5,20 @@ class UserControlls {
 
     async createFolder(req, res) {
 
-        const { user_id, path, agent } = req.body;
+        const { path, context } = req.body;
         const { folderName } = req.params;
+
+        if (context.type == "agent" && !context.scopes.includes("w")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
+            return;
+        }
+
         const client = await pool.connect();
-        console.log(user_id);
 
         try {
             let parentId;
             try {
-                parentId = await pathResolver(path || "/", user_id || agent.agent_id);
+                parentId = await pathResolver(path || "/", context.user_id);
             } catch (err) {
                 res.status(404).json({ message: err.message, suc: false });
                 return;
@@ -21,7 +26,7 @@ class UserControlls {
 
             const existingFolder = await client.query(
                 'SELECT folder_id FROM folders WHERE user_id=$1 AND parent_id=$2 AND folder_name=$3',
-                [user_id, parentId, folderName]
+                [context.user_id, parentId, folderName]
             );
 
             if (existingFolder.rowCount > 0) {
@@ -31,7 +36,7 @@ class UserControlls {
 
             const response = await client.query(
                 'INSERT INTO folders (user_id, agent_id, parent_id, folder_name, is_root) VALUES ($1, $2, $3, $4, false) RETURNING folder_id, folder_name, created_at',
-                [user_id, agent?.agent_id, parentId, folderName]
+                [context.user_id, null, parentId, folderName]
             );
 
             const folderData = response.rows[0];
@@ -56,17 +61,23 @@ class UserControlls {
     }
 
     async moveFolder(req, res) {
-        const { user_id, sourcePath, destinationPath } = req.body;
+        const { sourcePath, destinationPath, context } = req.body;
+        
+        if (context.type == "agent" && !context.scopes.includes("w")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
+            return;
+        }
+
         const client = await pool.connect();
         try {
 
-            const folderId = await pathResolver(sourcePath, user_id);
-            const destinationId = await pathResolver(destinationPath, user_id);
+            const folderId = await pathResolver(sourcePath, context.user_id);
+            const destinationId = await pathResolver(destinationPath, context.user_id);
 
             await client.query("BEGIN");
 
             await client.query(`UPDATE folders SET parent_id = $1 WHERE user_id=$3 and folder_id = $2`,
-                [destinationId, folderId, user_id]);
+                [destinationId, folderId, context.user_id]);
 
             await client.query("COMMIT");
 
@@ -82,18 +93,25 @@ class UserControlls {
     }
 
     async moveFile(req, res) {
-        const { user_id, sourcePath, destinationPath, agent } = req.body;
+        const { context, sourcePath, destinationPath } = req.body;
         const { filename } = req.params;
+
+        if (context.type == "agent" && !context.scopes.includes("w")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
+            return;
+        }
+
+        const user_id = context?.user_id;
 
         const client = await pool.connect();
 
         try {
-            const sourceId = await pathResolver(sourcePath, user_id || agent.agent_id);
-            const destinationId = await pathResolver(destinationPath, user_id || agent.agent_id);
+            const sourceId = await pathResolver(sourcePath, user_id );
+            const destinationId = await pathResolver(destinationPath, user_id);
 
             const fileExist = await client.query(
                 `SELECT file_id FROM files WHERE user_id=$1 and folder_id=$2 and filename=$3 `,
-                [user_id || agent?.agent_id, sourceId, filename]
+                [user_id, sourceId, filename]
             )
 
             if (fileExist.rowCount == 0) {
@@ -123,8 +141,15 @@ class UserControlls {
     }
 
     async renameFile(req, res, next) {
-        const { user_id, agent, sourcePath, newName } = req.body;
+        const { context, sourcePath, newName } = req.body;
         const { filename } = req.params;
+
+        if (context.type == "agent" && !context.scopes.includes("w")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
+            return;
+        }
+
+        const user_id = context.user_id;
 
         if (!filename) {
             res.status(401).json({ message: "Invalid input query", suc: false });
@@ -134,11 +159,11 @@ class UserControlls {
         const client = await pool.connect();
 
         try {
-            const folderId = await pathResolver(sourcePath, user_id || agent?.agent_id);
+            const folderId = await pathResolver(sourcePath, user_id);
 
             const fileId = await client.query(
-                `SELECT file_id FROM files WHERE (user_id=$1 OR agent_id=$1) and folder_id=$2 and filename=$3`,
-                [user_id || agent?.agent_id, folderId, filename]
+                `SELECT file_id FROM files WHERE user_id=$1 and folder_id=$2 and filename=$3`,
+                [user_id, folderId, filename]
             )
 
             if (fileId.rowCount == 0) {
@@ -168,27 +193,35 @@ class UserControlls {
     }
 
     async renameFolder(req, res, next) {
-        const {user_id, agent, sourcePath, newName} = req.body;
+        const { context, sourcePath, newName } = req.body;
+        
+        if (context.type == "agent" && !context.scopes.includes("w")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
+            return;
+        }
+
+        const user_id = context.user_id;
+        
         const client = await pool.connect();
 
-        try{
-            const folderId = await pathResolver(sourcePath, user_id || agent?.agent_id);
+        try {
+            const folderId = await pathResolver(sourcePath, user_id);
 
             await client.query("BEGIN");
             await client.query(
-                `UPDATE folders SET folder_name=$1 WHERE (user_id=$2 OR agent_id=$2) and folder_id=$3`,
-                [newName, user_id || agent?.agent_id, folderId]
+                `UPDATE folders SET folder_name=$1 WHERE user_id=$2 and folder_id=$3`,
+                [newName, user_id, folderId]
             )
 
             await client.query("COMMIT");
-            res.status(200).json({message:"Folder renamed successfully.", suc:true});
+            res.status(200).json({ message: "Folder renamed successfully.", suc: true });
         }
-        catch(error){
+        catch (error) {
             await client.query("ROLLBACK");
-            res.status(500).json({message:`Internal server error: ${error.message}`, suc:false});
+            res.status(500).json({ message: `Internal server error: ${error.message}`, suc: false });
 
         }
-        finally{
+        finally {
             await client.release();
         }
     }
