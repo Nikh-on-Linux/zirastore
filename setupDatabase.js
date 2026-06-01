@@ -3,6 +3,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { pool } from "./configs/database.config.js";
 import { generateApiKey } from "./configs/utils/apikey.util.config.js";
+import { pathResolver } from "./controllers/file/chunkupload.file.controller.js";
+import { v4 as uuidv4 } from "uuid";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,11 +14,11 @@ const modelsDir = path.join(__dirname, "models");
 const executionOrder = [
     "agents.model.sql",      // No dependencies
     "user.model.sql",       // Depends on: agents
-    "agents.modification.model.sql", // Inserts a column
     "keys.model.sql",        // Depends on: agents
     "folder.model.sql",      // Depends on: users
     "file.model.sql",        // Depends on: users, folders
-    "uploads.model.sql"      // Depends on: users, folders
+    "uploads.model.sql",      // Depends on: users, folders
+    "agents.modification.model.sql" // Inserts a column
 ];
 
 async function executeModelFile(filename) {
@@ -43,7 +45,7 @@ async function executeModelFile(filename) {
 }
 
 async function setupDatabase() {
-    console.log("\n🗄️  Starting database setup...\n");
+    console.log("\n  Starting database setup...\n");
 
     const client = await pool.connect();
 
@@ -51,7 +53,7 @@ async function setupDatabase() {
         await client.query("BEGIN");
 
         for (const modelFile of executionOrder) {
-            console.log(`📄 Processing: ${modelFile}`);
+            console.log(` Processing: ${modelFile}`);
             const filepath = path.join(modelsDir, modelFile);
 
             if (!fs.existsSync(filepath)) {
@@ -60,19 +62,30 @@ async function setupDatabase() {
 
             const sqlContent = fs.readFileSync(filepath, "utf-8");
             await client.query(sqlContent);
-            console.log(`   ✓ Completed\n`);
+            console.log(`  Completed\n`);
         }
 
-        await client.query("COMMIT");
         console.log("Tables are created successfully");
 
-        await client.query("BEGIN");
+        const insertRootUser = await client.query(
+            `INSERT INTO users(name, email, password, provider) VALUES($1, $2, $3, $4) RETURNING user_id`,
+            ["root_user", "root@oxygen.com", "oxygen", "system"] // use .env configurations
+        )
+
+        console.log("Root user created successfully");
+
+        const rootFolderId = await uuidv4();
+        
+        const initializeFolder = await client.query(
+            "INSERT INTO folders (folder_id, user_id, parent_id, folder_name, is_root) VALUES($1, $2, $1, 'root', true) RETURNING folder_id",
+            [rootFolderId, insertRootUser.rows[0].user_id]
+        )
 
         const apikey = await generateApiKey();
 
         const insertAgent = await client.query(
-            `INSERT INTO agents(name, scopes, target_folder) VALUES($1, $2, $3) RETURNING *`,
-            ["root_agent", "rwx", "/"]
+            `INSERT INTO agents(name, scopes, path, target_folder, created_by) VALUES($1, $2, $3, $4, $5) RETURNING *`,
+            ["root_agent", "rwx", "/", initializeFolder.rows[0].folder_id, insertRootUser.rows[0].user_id]
         );
 
         if (insertAgent.rowCount == 0) {
@@ -92,15 +105,15 @@ async function setupDatabase() {
 
         await client.query("COMMIT");
 
-        console.log("✅ Database setup completed successfully!");
-        console.log("\n🔑 Root Agent API Key (store this securely, it won't be shown again):");
+        console.log("Database setup completed successfully!");
+        console.log(" Root Agent API Key (store this securely, it won't be shown again):");
         console.log(apikey.fullKey);
 
         process.exit(0);
 
     } catch (err) {
         await client.query("ROLLBACK");
-        console.error("\n❌ Database setup failed. All changes rolled back.");
+        console.error("\n Database setup failed. All changes rolled back.");
         console.error("Error:", err.message);
         process.exit(1);
 

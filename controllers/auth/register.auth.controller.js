@@ -1,6 +1,7 @@
 import { pool } from "../../configs/database.config.js";
 import { v4 as uuidv4 } from "uuid";
 import { generateApiKey } from "../../configs/utils/apikey.util.config.js";
+import { pathResolver } from "../file/chunkupload.file.controller.js";
 
 class Register {
 
@@ -16,7 +17,7 @@ class Register {
         try {
 
             var result;
-            if (!agent?.agent_id) {
+            if (context.type != "agent") {
                 result = await client.query(
                     "INSERT INTO users(name,email,password,provider,image) VALUES($1,$2,$3,$4,$5) RETURNING *",
                     [name, email, hashPassword, "email", image]
@@ -58,7 +59,7 @@ class Register {
     // TODO: Google provider & Microsoft Provider
 
     async agent(req, res, next) {
-        const { name, target_folder, scopes, context } = req.body;
+        const { name, path, scopes, context } = req.body;
 
         if (context.type == "agent") {
             res.status(403).json({ message: "Request denied: Agents cannot create other agents.", suc: false });
@@ -73,9 +74,11 @@ class Register {
         try {
             await client.query("BEGIN");
 
+            const folderId = await pathResolver(path, user_id);
+
             const result = await client.query(
-                "INSERT INTO agents(name, created_by, scopes, target_folder) VALUES($1, $2, $3, $4) RETURNING *",
-                [name, user_id, scopes, target_folder]
+                "INSERT INTO agents(name, created_by, scopes, target_folder, path) VALUES($1, $2, $3, $4, $5) RETURNING *",
+                [name, user_id, scopes, folderId, path]
             );
 
             if (result.rowCount == 0) {
@@ -110,7 +113,7 @@ class Register {
                     break;
 
                 case "23503": // foreign_key_violation (e.g. invalid user_id)
-                    res.status(400).json({ message: "Referenced user does not exist", success: false });
+                    res.status(400).json({ message: "One of the reference does not exist", success: false });
                     break;
 
                 case "23502": // not_null_violation
@@ -123,7 +126,7 @@ class Register {
 
                 default:
                     console.error(err);
-                    res.status(500).json({ message: "Internal server error", success: false });
+                    res.status(500).json({ message: `Internal server error: ${err.message}`, success: false });
                     break;
             }
         } finally {

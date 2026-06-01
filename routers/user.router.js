@@ -13,6 +13,7 @@ router.get("/", (req, res) => {
     res.send("User api endpoint");
 })
 router.get("/me", JWtAuth.verifyToken, Dashboard.recentFiles)
+router.get('/show/agents', agentVerification, Dashboard.showAgents);
 router.post("/createfolder/:folderName", FileSchemaCheck.createFolderSchemaCheck, agentVerification, UserControlls.createFolder);
 router.post("/move/folder", FileSchemaCheck.moveFolderSchemaCheck, agentVerification, UserControlls.moveFolder);
 router.post("/move/file/:filename", FileSchemaCheck.moveFileSchemaCheck, agentVerification, UserControlls.moveFile);

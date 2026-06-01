@@ -4,6 +4,12 @@
 
 - [X] `Rename` - Rename both File and Folder
 
+## Agent operations
+
+- [ ] `Edit` - Edit agent scopes and name.
+- [ ] `Delete` - Delete an agent.
+- [ ] `Show` - Show agents original api key.
+- [X] `list` - List all agents.
 
 ## Zod middleware still needed
 

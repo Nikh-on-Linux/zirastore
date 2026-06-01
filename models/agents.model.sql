@@ -8,5 +8,5 @@ CREATE TABLE agents(
     agent_id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     scopes scope,
-    target_folder text
+    path TEXT NOT NULL
 );

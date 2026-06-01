@@ -12,7 +12,7 @@ class AuthSchema {
 
         this.agentRegisterSchema = z.object({
             name: z.string().nonempty(),
-            target_folder: z.string().nonempty(),
+            path: z.string().nonempty(),
             scopes: z.enum(['r', 'w', 'rw', 'rwx']),
         })
 

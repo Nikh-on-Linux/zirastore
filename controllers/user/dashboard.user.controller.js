@@ -48,6 +48,40 @@ class Dashboard {
 
     }
 
+    async showAgents(req, res) {
+        const { context } = req.body;
+
+        if(context.type == "agent" && !context.scopes.includes("r")){
+            res.status(403).json({message:"Forbidden key: Insufficient access rights.", suc:false});
+            return;
+        }
+
+        const user_id = context.user_id;
+        const client = await pool.connect();
+        try{
+            const response = await client.query(
+                `SELECT name, scopes, path FROM agents WHERE created_by=$1 ORDER BY name ASC`,
+                [user_id]
+            )
+            
+            if(response.rowCount == 0){
+                res.status(404).json({message:"Agents not found", suc:false});
+            }
+
+            res.status(200).json({
+                message:"Agents fetched successfully",
+                suc:true,
+                data:response.rows
+            })
+        }
+        catch(error){
+            res.status(500).json({message:`Internal server error: ${error.message}`, suc:false});
+        }
+        finally{
+            await client.release();
+        }
+    }
+
 }
 
 const dashboard = new Dashboard();
