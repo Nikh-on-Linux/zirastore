@@ -3,6 +3,15 @@
 ## File & Folder operations
 
 - [X] `Rename` - Rename both File and Folder
+- [ ] `Delete` - Files & Folders
+
+## User operations
+
+- [x] `Get` user info.
+- [ ] `Delete` User profile
+- [ ] `Storage` Inforamation per user.
+- [x] `Edit` User information.
+- [x] `Update` Password.
 
 ## Agent operations
 
@@ -10,6 +19,13 @@
 - [X] `Delete` - Delete an agent.
 - [X] `list` - List all agents.
 - [X]  Remove user creation via agent feature.
+
+## Auth features
+
+- [ ] `Google` support
+- [ ] `Microsoft` support
+- [ ] `Internal token` management
+
 ## Zod middleware still needed
 
 - [ ] `POST /upload` - validate multipart upload metadata and `user_id`

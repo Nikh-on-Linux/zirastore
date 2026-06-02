@@ -5,7 +5,8 @@ import { pool } from "./configs/database.config.js";
 import { generateApiKey } from "./configs/utils/apikey.util.config.js";
 import { pathResolver } from "./controllers/file/chunkupload.file.controller.js";
 import { v4 as uuidv4 } from "uuid";
-
+import { configDotenv } from "dotenv";
+configDotenv()
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const modelsDir = path.join(__dirname, "models");
@@ -67,9 +68,12 @@ async function setupDatabase() {
 
         console.log("Tables are created successfully");
 
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(process.env.ROOT_PASSWORD, salt);
+
         const insertRootUser = await client.query(
             `INSERT INTO users(name, email, password, provider) VALUES($1, $2, $3, $4) RETURNING user_id`,
-            ["root_user", "root@oxygen.com", "oxygen", "system"] // use .env configurations
+            [process.env.ROOT_NAME, process.env.ROOT_EMAIL, hash, "system"]
         )
 
         console.log("Root user created successfully");

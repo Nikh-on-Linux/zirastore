@@ -7,7 +7,7 @@ export async function passwordEncrypt(req, res, next) {
 
     try {
         const salt = await bcrypt.genSalt(10);
-        const hash = await bcrypt.hash(req.body.password, salt);
+        const hash = await bcrypt.hash(req.body.password || req.body.newPassword, salt);
 
         req.body.hashPassword = hash;
         next();

@@ -3,7 +3,7 @@ import express from "express";
 import JWtAuth from "../middlewares/auth/jwt.auth.middleware.js";
 import Dashboard from "../controllers/user/dashboard.user.controller.js";
 import UserControlls from "../controllers/user/api.user.controller.js";
-import { agentVerification } from "../middlewares/auth/utils.auth.middleware.js";
+import { agentVerification, passwordEncrypt } from "../middlewares/auth/utils.auth.middleware.js";
 import AgentSchemaCheck from "../middlewares/agent/schemaCheck.agent.middleware.js";
 import FileSchemaCheck from "../middlewares/file/schemaCheck.file.middleware.js";
 
@@ -13,10 +13,13 @@ router.use(express.json());
 router.get("/", (req, res) => {
     res.send("User api endpoint");
 })
-router.get("/me", JWtAuth.verifyToken, Dashboard.recentFiles)
+router.patch("/", agentVerification, Dashboard.editUser);
+router.patch("/password", passwordEncrypt ,agentVerification, Dashboard.updatePassword);
+router.get("/me", JWtAuth.verifyToken, Dashboard.recentFiles);
+router.get("/info", agentVerification, Dashboard.userInfo);
 router.get('/agents', agentVerification, Dashboard.showAgents);
 router.patch('/agent/:id', AgentSchemaCheck.editAgentSchemaCheck, agentVerification, UserControlls.editAgent);
-router.delete('/agent/:id',agentVerification,UserControlls.deleteAgent);
+router.delete('/agent/:id', agentVerification, UserControlls.deleteAgent);
 router.post("/createfolder/:folderName", FileSchemaCheck.createFolderSchemaCheck, agentVerification, UserControlls.createFolder);
 router.post("/move/folder", FileSchemaCheck.moveFolderSchemaCheck, agentVerification, UserControlls.moveFolder);
 router.post("/move/file/:filename", FileSchemaCheck.moveFileSchemaCheck, agentVerification, UserControlls.moveFile);
