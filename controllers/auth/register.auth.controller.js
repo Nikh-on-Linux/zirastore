@@ -8,28 +8,19 @@ class Register {
     async email(req, res, next) {
         const { name, email, hashPassword, image, context } = req.body;
 
-        if (context.scopes != "rwx") {
-            res.status(403).json({ message: "Access denied, permission not granted", success: false });
+        if (context.type == "agent") {
+            res.status(403).json({ message: "Forbidden key: restricted access for agents.", suc: false });
             return;
         }
         const client = await pool.connect();
 
         try {
 
-            var result;
-            if (context.type != "agent") {
-                result = await client.query(
-                    "INSERT INTO users(name,email,password,provider,image) VALUES($1,$2,$3,$4,$5) RETURNING *",
-                    [name, email, hashPassword, "email", image]
-                );
-            }
-            else {
-                result = await client.query(
-                    "INSERT INTO users(name,email,password,provider,image,agent_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING *",
-                    [name, email, hashPassword, "email", image, context.agent_id]
-                );
-            }
 
+            const result = await client.query(
+                "INSERT INTO users(name,email,password,provider,image) VALUES($1,$2,$3,$4,$5) RETURNING *",
+                [name, email, hashPassword, "email", image]
+            );
 
             const rootFolderId = await uuidv4();
 
@@ -39,18 +30,18 @@ class Register {
             )
 
             if (initialize.rowCount == 0) {
-                res.status(500).json({ message: "Initialization failed", success: false });
+                res.status(500).json({ message: "Initialization failed", suc: false });
                 return;
             }
 
-            res.status(201).json({ success: true, user: result.rows[0] });
+            res.status(201).json({ message: "User created successfully", suc: true, user: result.rows[0] });
         } catch (err) {
             console.log(err);
             if (err.code == "23505") {
-                res.status(409).json({ message: "User already exist", success: false });
+                res.status(409).json({ message: "User already exist", suc: false });
                 return;
             }
-            res.status(500).json({ message: "Internal server error", success: false });
+            res.status(500).json({ message: "Internal server error", suc: false });
         } finally {
             client.release();
         }

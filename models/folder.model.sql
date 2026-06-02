@@ -7,10 +7,6 @@ CREATE TABLE folders (
         REFERENCES users(user_id)
         ON DELETE CASCADE,
 
-    agent_id INTEGER
-        REFERENCES agents(agent_id)
-        ON DELETE CASCADE,
-
     parent_id UUID NOT NULL,
 
     folder_name VARCHAR(255) NOT NULL,
@@ -26,13 +22,6 @@ CREATE TABLE folders (
 
     CONSTRAINT unique_folder_per_parent
         UNIQUE (user_id, parent_id, folder_name)
-);
-
-ALTER TABLE folders
-ADD CONSTRAINT folder_owner_presence_check
-CHECK (
-    user_id IS NOT NULL
-    OR agent_id IS NOT NULL
 );
 
 ALTER TABLE folders
