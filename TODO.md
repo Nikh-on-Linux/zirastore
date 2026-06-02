@@ -6,11 +6,10 @@
 
 ## Agent operations
 
-- [ ] `Edit` - Edit agent scopes and name.
-- [ ] `Delete` - Delete an agent.
-- [ ] `Show` - Show agents original api key.
+- [X] `Edit` - Edit agent scopes and name.
+- [X] `Delete` - Delete an agent.
 - [X] `list` - List all agents.
-
+- [ ]  Remove user creation via agent feature.
 ## Zod middleware still needed
 
 - [ ] `POST /upload` - validate multipart upload metadata and `user_id`

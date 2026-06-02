@@ -62,7 +62,7 @@ class UserControlls {
 
     async moveFolder(req, res) {
         const { sourcePath, destinationPath, context } = req.body;
-        
+
         if (context.type == "agent" && !context.scopes.includes("w")) {
             res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
             return;
@@ -106,7 +106,7 @@ class UserControlls {
         const client = await pool.connect();
 
         try {
-            const sourceId = await pathResolver(sourcePath, user_id );
+            const sourceId = await pathResolver(sourcePath, user_id);
             const destinationId = await pathResolver(destinationPath, user_id);
 
             const fileExist = await client.query(
@@ -194,14 +194,14 @@ class UserControlls {
 
     async renameFolder(req, res, next) {
         const { context, sourcePath, newName } = req.body;
-        
+
         if (context.type == "agent" && !context.scopes.includes("w")) {
             res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
             return;
         }
 
         const user_id = context.user_id;
-        
+
         const client = await pool.connect();
 
         try {
@@ -223,6 +223,132 @@ class UserControlls {
         }
         finally {
             await client.release();
+        }
+    }
+
+    async editAgent(req, res) {
+        const { context, name, scopes, path } = req.body;
+        const { id } = req.params;
+
+        if (context.type == "agent") {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights. Agents are not allowed.", suc: false });
+            return;
+        }
+        const client = await pool.connect();
+
+        try {
+            const agent = await client.query(
+                `SELECT * FROM agents WHERE agent_id=$1`,
+                [id]
+            );
+
+            if (agent.rowCount == 0) {
+                res.status(404).json({ message: "Agent not found", suc: false });
+                return;
+            }
+
+            await client.query("BEGIN");
+
+            if (path != agent.rows[0].path) {
+
+                const folderId = await pathResolver(path, context.user_id);
+
+                await client.query(
+                    `UPDATE agents SET name=$1, scopes=$2, path=$3, target_folder=$4 WHERE created_by=$5`,
+                    [name, scopes, path, folderId, context.user_id]
+                )
+
+                await client.query("COMMIT");
+
+                res.status(200).json({ message: "Agent configurations updated successfully", suc: true });
+                return;
+            }
+
+            await client.query(
+                `UPDATE agents SET name=$1, scopes=$2, path=$3 WHERE created_by=$4`,
+                [name, scopes, path, context.user_id]
+            )
+
+            await client.query("COMMIT");
+            res.status(200).json({ message: "Agent configurations updated successfully", suc: true });
+            return;
+        }
+        catch (error) {
+            res.status(500).json({ message: `Internal server error: ${error.message}`, suc: false });
+            await client.query("ROLLBACK");
+        }
+        finally {
+            await client.release();
+        }
+    }
+
+    async deleteAgent(req, res) {
+        const { context } = req.body;
+        const { id } = req.params;
+
+        if (context.type == "agent") {
+            res.status(403).json({ message: "Forbidden key: Agents don't have enough access rights", suc: false });
+            return;
+        }
+
+        const client = await pool.connect();
+
+        try {
+
+            const agent = await client.query(
+                `SELECT agent_id FROM agents WHERE created_by=$1 and agent_id=$2`,
+                [context.user_id,id]
+            );
+
+            if(agent.rowCount == 0){
+                res.status(404).json({message:"Agent not found",suc:false});
+                return;
+            }
+
+            const agentId = agent.rows[0].agent_id;
+
+            await client.query("BEGIN");
+
+            await client.query(
+                `DELETE FROM keys WHERE agent_id=$1`,
+                [agentId]
+            );
+
+            await client.query(
+                `DELETE FROM agents WHERE agent_id=$1`,
+                [agentId]
+            );
+        
+            await client.query("COMMIT");
+            res.status(200).json({ message: "Agent deleted successfully", suc: true });
+        }
+        catch(error){
+            await client.query("ROLLBACK");
+            switch (error.code){
+                case '23503':
+                    res.status(409).json({ message: "Cannot delete agent: referenced by other records", suc: false });
+                    break;
+                case '23505':
+                    res.status(409).json({ message: "Unique constraint violation", suc: false });
+                    break;
+                case '42703':
+                    res.status(500).json({ message: "Database column not found", suc: false });
+                    break;
+                case '08006':
+                    res.status(503).json({ message: "Database connection lost", suc: false });
+                    break;
+                case 'ECONNREFUSED':
+                    res.status(503).json({ message: "Cannot connect to database", suc: false });
+                    break;
+                case 'ETIMEDOUT':
+                    res.status(504).json({ message: "Database connection timeout", suc: false });
+                    break;
+                default:
+                    res.status(500).json({ message: `Internal server error: ${error.message}`, suc: false });
+            }
+        }
+        finally {
+            client.release();
         }
     }
 
