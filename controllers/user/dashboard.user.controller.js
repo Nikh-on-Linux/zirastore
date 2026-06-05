@@ -1,4 +1,5 @@
 import { pool } from "../../configs/database.config.js";
+import { pathResolver } from "../../controllers/file/chunkupload.file.controller.js";
 import bcrypt from "bcryptjs";
 class Dashboard {
 
@@ -193,6 +194,47 @@ class Dashboard {
             res.status(500).json({ message: `Internal server error: ${error.message}`, suc: false });
         }
         finally {
+            await client.release();
+        }
+    }
+
+    async showDirectory(req, res) {
+        const { context, path } = req.body;
+
+        if (context.type == "agent" && !context.scopes?.includes("r")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights" });
+            return;
+        }
+
+        const client = await pool.connect();
+        try {
+            const folderId = await pathResolver(path,context.user_id);
+
+            const folders = await client.query(
+                `SELECT folder_id, folder_name, created_at FROM folders WHERE parent_id=$1 and user_id=$2 ORDER BY folder_name ASC`,
+                [folderId,context.user_id]
+            );
+
+            const files = await client.query(
+                `SELECT filename, file_id, mimetype, encoding, file_size, created_at FROM files WHERE user_id=$1 and folder_id=$2 ORDER BY filename ASC`,
+                [context.user_id,folderId]
+            )
+
+            res.status(200).json(
+                {
+                    message:"Directory fetched successfully",
+                    suc:true,
+                    data:{
+                        folders: folders.rows,
+                        files: files.rows
+                    }
+                }
+            )
+        }
+        catch(error){
+            res.status(500).json({message:`Internal server error:${error.message}`,suc:false});
+        }
+        finally{
             await client.release();
         }
     }

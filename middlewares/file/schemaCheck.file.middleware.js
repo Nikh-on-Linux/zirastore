@@ -93,6 +93,21 @@ class SchemaCheck {
         }
     }
 
+    getDirectorySchemaCheck(req, res, next) {
+        try {
+            FileSchema.getDirectorySchema.parse(req.body);
+            next();
+        }
+        catch (error) {
+            if (error instanceof z.ZodError) {
+                res.status(401).json({ message: "Invalid input field", suc: false });
+                return;
+            }
+            console.log(`Error: ${error.message}`);
+            res.status(500).json({ message: "Internal server error", suc: false });
+        }
+    }
+
 }
 
 const fileschemacheck = new SchemaCheck();

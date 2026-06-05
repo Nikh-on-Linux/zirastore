@@ -31,6 +31,10 @@ class FileSchema {
             sourcePath:z.string().nonoptional(),
             newName:z.string().nonoptional()
         })
+
+        this.getDirectorySchema = z.object({
+            path:z.string().nonempty().nonoptional()
+        })
     }
 }
 

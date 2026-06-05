@@ -25,5 +25,6 @@ router.post("/move/folder", FileSchemaCheck.moveFolderSchemaCheck, agentVerifica
 router.post("/move/file/:filename", FileSchemaCheck.moveFileSchemaCheck, agentVerification, UserControlls.moveFile);
 router.post("/rename/file/:filename", FileSchemaCheck.renameFileSchemaCheck, agentVerification, UserControlls.renameFile);
 router.post("/rename/folder", FileSchemaCheck.renameFolderSchemaCheck, agentVerification, UserControlls.renameFolder);
+router.get("/directory",agentVerification,Dashboard.showDirectory);
 
 export default router;

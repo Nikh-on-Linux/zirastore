@@ -3,6 +3,7 @@
 ## File & Folder operations
 
 - [X] `Rename` - Rename both File and Folder
+- [X] `Show` - Folders & Files based on path.
 - [ ] `Delete` - Files & Folders
 
 ## User operations
