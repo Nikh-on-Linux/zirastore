@@ -7,15 +7,17 @@ import SchemaCheck from "../middlewares/file/schemaCheck.file.middleware.js";
 
 // Controller imports
 import { uploadFile } from "../controllers/file/upload.file.controller.js";
-import { initiateUpload, uploadPart, completeUpload } from "../controllers/file/chunkupload.file.controller.js";
+import { initiateUpload, uploadPart, completeUpload, uploadStatus, chunkStatus } from "../controllers/file/chunkupload.file.controller.js";
 
 // Config
 const router = Router();
 router.use(express.json());
 
 // Endpoints
-router.post("/",uploadFile);
-router.post("/init",JwtAuth.verifyToken, initiateUpload);
+router.post("/", uploadFile);
+router.post("/init", JwtAuth.verifyToken, initiateUpload);
 router.put("/:uploadId/parts/:partNumber", express.raw({ type: "*/*", limit: "100mb" }), uploadPart);
 router.post("/:uploadId/complete/:uploadfilehash", completeUpload);
+router.get("/info/:status", JwtAuth.verifyToken, uploadStatus);
+router.get("/info/chunks/:uploadId",JwtAuth.verifyToken, chunkStatus);
 export default router;

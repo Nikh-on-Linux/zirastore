@@ -17,10 +17,10 @@ class jwtAuth {
                 user_id: user_id
             }, process.env.JWT_SECRETE, { algorithm: "HS256", expiresIn: "2h" }); // IMPLEMENT RS256 later
 
-            res.status(200).json({ message: "Authenticated successfully", success: true, token });
+            res.status(200).json({ message: "Authenticated successfully", suc: true, token });
         }
         catch (err) {
-            res.status(500).json({ message: "Internal Server Error", success: false });
+            res.status(500).json({ message: "Internal Server Error", suc: false });
             console.log(err);
         }
 

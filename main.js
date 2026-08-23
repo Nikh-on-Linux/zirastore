@@ -3,12 +3,24 @@ import authrouter from "./routers/auth.router.js";
 import uploadrouter from "./routers/upload.router.js";
 import streamRouter from "./routers/stream.router.js";
 import userRouter from "./routers/user.router.js";
+import cors from "cors";
 
 const app = express();
+app.use(
+    cors({
+        origin: "http://localhost:3000",
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        credentials:true,
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization",
+        ],
+    })
+);
 app.use('/auth', authrouter);
-app.use('/upload',uploadrouter);
-app.use('/stream',streamRouter);
-app.use('/user',userRouter);
+app.use('/upload', uploadrouter);
+app.use('/stream', streamRouter);
+app.use('/user', userRouter);
 app.get('/', (req, res) => {
     res.send('Hellow');
 })

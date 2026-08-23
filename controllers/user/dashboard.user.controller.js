@@ -211,7 +211,7 @@ class Dashboard {
             const folderId = await pathResolver(path,context.user_id);
 
             const folders = await client.query(
-                `SELECT folder_id, folder_name, created_at FROM folders WHERE parent_id=$1 and user_id=$2 ORDER BY folder_name ASC`,
+                `SELECT folder_id, folder_name, created_at FROM folders WHERE parent_id=$1 and user_id=$2 and is_root!=true ORDER BY folder_name ASC`,
                 [folderId,context.user_id]
             );
 

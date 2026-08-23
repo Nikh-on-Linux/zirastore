@@ -75,10 +75,10 @@ export { pathResolver };
 
 export async function initiateUpload(req, res) {
     try {
-        const { filename, mimetype, size, pathname, context } = req.body;
+        const { filename, mimetype, size, pathname, totalChunks, chunkSize, context } = req.body;
 
-        if(context.type == "agent" && !context.scopes.includes("w")){
-            res.status(403).json({message:"Forbidden key: Insufficient access rights", suc:false});
+        if (context.type == "agent" && !context.scopes.includes("w")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
             return;
         }
 
@@ -89,7 +89,7 @@ export async function initiateUpload(req, res) {
         const uploadId = uuidv7();
         const user_id = context.user_id;
 
-        const folder_id = await pathResolver(pathname,user_id);
+        const folder_id = await pathResolver(pathname, user_id);
 
         await pool.query(
             `INSERT INTO uploads(
@@ -98,17 +98,55 @@ export async function initiateUpload(req, res) {
                 folder_id,
                 filename, 
                 mimetype, 
-                total_size
+                total_size,
+                chunk_size,
+                total_chunks,
+                recieved_chunks
             )
-            VALUES($1,$2,$3,$4,$5,$6)`,
-            [uploadId, user_id, folder_id, filename, mimetype, size || null]
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,0)`,
+            [uploadId, user_id, folder_id, filename, mimetype, size || null, chunkSize, totalChunks]
         );
 
-        res.status(201).json({ upload_id: uploadId });
+        res.status(201).json({ upload_id: uploadId, suc: true, message: "Initiation Successful" });
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: "Init failed" });
+        res.status(500).json({ message: "Init failed", suc: false });
+    }
+}
+
+export async function chunkStatus(req, res) {
+    const { context } = req.body;
+    const { uploadId } = req.params;
+    try {
+        if (context.type == "agent" && !context.scopes.includes("r")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
+            return;
+        }
+
+        if (!context.user_id || !uploadId) {
+            return res.status(400).json({ message: "Missing required fields" });
+        }
+
+        const fetchInfo = await pool.query(
+            `SELECT * FROM upload_parts WHERE upload_id=$1`,
+            [uploadId]
+        )
+
+        if (fetchInfo.rowCount == 0) {
+            res.status(404).json({ message: "Upload information not found", suc: false });
+            return
+        }
+
+        res.status(200).json({
+            message: "Chunk information fetched successfully",
+            suc: true,
+            data: fetchInfo.rows
+        })
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Internal Server Error", suc: false });
     }
 }
 
@@ -125,11 +163,17 @@ export async function uploadPart(req, res) {
         if (uploadCheck.rows.length === 0) {
             return res.status(404).json({ message: "Upload not found" });
         }
+        console.log(uploadCheck.rows[0]["chunk_size"] , req.body.length)
+        if(uploadCheck.rows[0]["chunk_size"] != req.body.length){
+            return res.status(401).json({message:"Forbidden chunk size", suc:false});
+        }
 
         const tmpDir = getTmpUploadDir(uploadId);
         const partPath = path.join(tmpDir, partNumber);
 
         fs.writeFileSync(partPath, req.body);
+
+        await pool.query("BEGIN");
 
         await pool.query(
             `INSERT INTO upload_parts(upload_id, part_number, size, file_path)
@@ -139,17 +183,62 @@ export async function uploadPart(req, res) {
             [uploadId, partNumber, req.body.length, partPath]
         );
 
+
         await pool.query(
-            `UPDATE uploads SET status='uploading' WHERE upload_id=$1`,
+            `UPDATE uploads SET status='uploading', recieved_chunks=recieved_chunks + 1 WHERE upload_id=$1`,
             [uploadId]
         );
 
-        res.status(200).json({ message: "Part uploaded" });
+        await pool.query("COMMIT");
+
+        res.status(200).json({ message: "Part uploaded", suc: true });
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: "Part upload failed" });
+        res.status(500).json({ message: "Part upload failed", suc: false });
+        await pool.query("ROLLBACK");
     }
+}
+
+export async function uploadStatus(req, res) {
+    const { context } = req.body;
+    const { status } = req.params;
+    try {
+        if (context.type == "agent" && !context.scopes.includes("r")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
+            return;
+        }
+
+        if (!context.user_id || !status) {
+            return res.status(400).json({ message: "Missing required fields" });
+        }
+
+        const fetchInfo = await pool.query(
+            `SELECT * FROM uploads WHERE user_id=$1 and status=$2`,
+            [context.user_id, status]
+        )
+
+        if (fetchInfo.rowCount == 0) {
+            res.status(404).json({ message: "Upload information not found", suc: false });
+            return
+        }
+
+        const sanitizedInfo = fetchInfo.rows.map(({ user_id, ...rest }) => rest);
+
+        console.log(sanitizedInfo);
+
+        res.status(200).json({
+            message: "Upload information fetched successfully",
+            suc: true,
+            data: sanitizedInfo
+        })
+    }
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Internal Server Error", suc: false });
+    }
+
+
 }
 
 export async function completeUpload(req, res) {
@@ -164,7 +253,7 @@ export async function completeUpload(req, res) {
         );
 
         if (uploadRes.rows.length === 0) {
-            return res.status(404).json({ message: "Upload not found" });
+            return res.status(404).json({ message: "Upload not found", suc: false });
         }
 
         const upload = uploadRes.rows[0];
@@ -176,7 +265,7 @@ export async function completeUpload(req, res) {
         );
 
         if (partsRes.rows.length === 0) {
-            return res.status(400).json({ message: "No parts uploaded" });
+            return res.status(400).json({ message: "No parts uploaded", suc: false });
         }
 
         const objectId = uuidv7();
@@ -244,13 +333,14 @@ export async function completeUpload(req, res) {
 
         res.status(200).json({
             message: "Upload completed",
-            object_id: objectId
+            object_id: objectId,
+            suc: true
         });
 
     } catch (err) {
         await client.query("ROLLBACK");
         console.error(err);
-        res.status(500).json({ message: "Complete failed" });
+        res.status(500).json({ message: "Complete failed", suc: false });
     } finally {
         client.release();
     }

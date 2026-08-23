@@ -8,7 +8,7 @@ class Register {
     async email(req, res, next) {
         const { name, email, hashPassword, image, context } = req.body;
 
-        if (context.type == "agent") {
+        if (context?.type == "agent") {
             res.status(403).json({ message: "Forbidden key: restricted access for agents.", suc: false });
             return;
         }

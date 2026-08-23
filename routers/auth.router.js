@@ -24,7 +24,7 @@ router.use(express.json({
 
 //endpoints
 router.get('/', (req, res) => { res.send("This is a router") });
-router.post('/register', agentVerification, emailRegisterSchema, passwordEncrypt, register.email);
+router.post('/register', emailRegisterSchema, passwordEncrypt, register.email);
 router.post('/register/agent', agentRegisterSchema, JwtAuth.verifyToken, register.agent);
 router.post('/login', emailLoginSchema, Login.email, JwtAuth.assignToken);
 router.get("/agent", agentVerification);

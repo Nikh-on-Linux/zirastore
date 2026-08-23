@@ -5,6 +5,9 @@ CREATE TABLE uploads (
     mimetype VARCHAR(255),
     folder_id UUID REFERENCES folders(folder_id),
     total_size BIGINT,
+    total_chunks INTEGER NOT NULL,
+    chunk_size INTEGER NOT NULL,
+    recieved_chunks INTEGER,
     status VARCHAR(50) DEFAULT 'initiated',
     created_at TIMESTAMPTZ DEFAULT now()
 );
