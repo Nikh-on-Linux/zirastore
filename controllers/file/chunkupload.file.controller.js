@@ -164,7 +164,7 @@ export async function uploadPart(req, res) {
             return res.status(404).json({ message: "Upload not found" });
         }
         console.log(uploadCheck.rows[0]["chunk_size"] , req.body.length)
-        if(uploadCheck.rows[0]["chunk_size"] != req.body.length){
+        if(uploadCheck.rows[0]["chunk_size"] < req.body.length){
             return res.status(401).json({message:"Forbidden chunk size", suc:false});
         }
 
