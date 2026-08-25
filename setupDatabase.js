@@ -6,6 +6,7 @@ import { generateApiKey } from "./configs/utils/apikey.util.config.js";
 import { pathResolver } from "./controllers/file/chunkupload.file.controller.js";
 import { v4 as uuidv4 } from "uuid";
 import { configDotenv } from "dotenv";
+import bcrypt from "bcryptjs";
 configDotenv()
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

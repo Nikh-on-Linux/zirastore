@@ -1,4 +1,5 @@
 import { v7 as uuidv7 } from "uuid";
+import fsPromise from "fs/promises";
 import fs from "fs";
 import path from "path";
 import { pool } from "../../configs/database.config.js";
@@ -163,9 +164,9 @@ export async function uploadPart(req, res) {
         if (uploadCheck.rows.length === 0) {
             return res.status(404).json({ message: "Upload not found" });
         }
-        console.log(uploadCheck.rows[0]["chunk_size"] , req.body.length)
-        if(uploadCheck.rows[0]["chunk_size"] < req.body.length){
-            return res.status(401).json({message:"Forbidden chunk size", suc:false});
+        console.log(uploadCheck.rows[0]["chunk_size"], req.body.length)
+        if (uploadCheck.rows[0]["chunk_size"] < req.body.length) {
+            return res.status(401).json({ message: "Forbidden chunk size", suc: false });
         }
 
         const tmpDir = getTmpUploadDir(uploadId);
@@ -197,6 +198,48 @@ export async function uploadPart(req, res) {
         console.error(err);
         res.status(500).json({ message: "Part upload failed", suc: false });
         await pool.query("ROLLBACK");
+    }
+}
+
+export async function deleteUpload() {
+    const { context } = req.body;
+    const { uploadId } = req.params;
+    try {
+        if (context.type == "agent" && !context.scopes.includes("w")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
+            return;
+        }
+
+        if (!context.user_id || !uploadId) {
+            return res.status(400).json({ message: "Missing required fields" });
+        }
+
+        await pool.query("BEGIN");
+
+        const partsInfo = await pool.query(`SELECT * FROM upload_parts WHERE upload_id=$1`, [uploadId]);
+
+        if (partsInfo.rowCount == 0) {
+            res.status(404).json({ message: "Upload information not found", suc: false });
+            return;
+        }
+
+        const partId = [...partsInfo.rows];
+
+        partId.forEach(async (part) => {
+            await fsPromise.unlink(part.file_path);
+        })
+
+        await pool.query(`DELETE FROM upload_parts WHERE upload_id=$1 `, [uploadId]);
+
+        await pool.query("COMMIT");
+
+        res.status(200).json({ message: "Upload cancellation successful", suc: true });
+
+    }
+    catch (err) {
+        await pool.query("ROLLBACK");
+        console.log(err);
+        res.status(500).json({ message: "Internal Server Erorr", suc: false });
     }
 }
 

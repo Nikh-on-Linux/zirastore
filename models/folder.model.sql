@@ -6,6 +6,8 @@ CREATE TABLE folders (
     user_id INTEGER
         REFERENCES users(user_id)
         ON DELETE CASCADE,
+    
+    agent_id INTEGER REFERENCES agents(agent_id) ON DELETE CASCADE,
 
     parent_id UUID NOT NULL,
 

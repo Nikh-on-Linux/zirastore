@@ -7,7 +7,7 @@ import SchemaCheck from "../middlewares/file/schemaCheck.file.middleware.js";
 
 // Controller imports
 import { uploadFile } from "../controllers/file/upload.file.controller.js";
-import { initiateUpload, uploadPart, completeUpload, uploadStatus, chunkStatus } from "../controllers/file/chunkupload.file.controller.js";
+import { initiateUpload, uploadPart, completeUpload, uploadStatus, chunkStatus, deleteUpload } from "../controllers/file/chunkupload.file.controller.js";
 
 // Config
 const router = Router();
@@ -20,4 +20,5 @@ router.put("/:uploadId/parts/:partNumber", express.raw({ type: "*/*", limit: "10
 router.post("/:uploadId/complete/:uploadfilehash", completeUpload);
 router.get("/info/:status", JwtAuth.verifyToken, uploadStatus);
 router.get("/info/chunks/:uploadId",JwtAuth.verifyToken, chunkStatus);
+router.delete("/:uploadId",JwtAuth.verifyToken,deleteUpload)
 export default router;
