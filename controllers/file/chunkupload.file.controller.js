@@ -172,7 +172,7 @@ export async function uploadPart(req, res) {
         const tmpDir = getTmpUploadDir(uploadId);
         const partPath = path.join(tmpDir, partNumber);
 
-        fs.writeFileSync(partPath, req.body);
+        await fs.promises.writeFile(partPath, req.body);
 
         await pool.query("BEGIN");
 
