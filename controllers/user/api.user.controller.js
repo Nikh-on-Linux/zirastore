@@ -237,67 +237,138 @@ class UserControlls {
         const client = await pool.connect();
 
         try {
-            const agent = await client.query(
-                `SELECT * FROM agents WHERE agent_id=$1`,
+            // Fetch agent WITH webhook subscription in a single query
+            const agentResult = await client.query(
+                `SELECT 
+                a.agent_id,
+                a.name,
+                a.scopes,
+                a.path,
+                a.target_folder,
+                a.created_by,
+                w.id as webhook_id,
+                w.target_url,
+                w.enabled as webhook_enabled,
+                w.event_type,
+                w.target_folder as webhook_target_folder
+             FROM agents a
+             LEFT JOIN webhook_subscriptions w ON a.agent_id = w.agent_id
+             WHERE a.agent_id = $1`,
                 [id]
             );
 
-            if (agent.rowCount == 0) {
+            if (agentResult.rowCount == 0) {
                 res.status(404).json({ message: "Agent not found", suc: false });
                 return;
             }
 
-            await client.query("BEGIN");
+            const agentData = agentResult.rows[0];
 
-
-            if (path != agent.rows[0].path) {
-
-                const folderId = await pathResolver(path, context.user_id);
-
-                await client.query(
-                    `UPDATE agents SET name=$1, scopes=$2, path=$3, target_folder=$4 WHERE created_by=$5 and agent_id=$6`,
-                    [name, scopes, path, folderId, context.user_id, id]
-                )
-
-                if (webhook) {
-                    const webhookresponse = await client.query(
-                        "UPDATE webhook_subscriptions SET target_url=$1, target_folder=$2, event_type=$3, enabled=$4 WHERE agent_id=$5 RETURNING *",
-                        [webhook.target_url, folderId, webhook.event_type, webhook.enabled, id]
-                    )
-
-                    if (webhookresponse.rowCount == 0) {
-                        res.status(400).json({ message: "Failed to update webhook", suc: false });
-                        await client.query("ROLLBACK");
-                        return;
-                    }
-                }
-
-                await client.query("COMMIT");
-
-                res.status(200).json({ message: "Agent configurations updated successfully", suc: true });
+            // Check if user owns this agent
+            if (agentData.created_by !== context.user_id) {
+                res.status(403).json({ message: "You don't have permission to edit this agent", suc: false });
                 return;
             }
 
-            await client.query(
-                `UPDATE agents SET name=$1, scopes=$2 WHERE created_by=$3 AND agent_id=$4`,
-                [name, scopes, context.user_id, id]
-            )
-
-            if (webhook) {
-                const webhookresponse = await client.query(
-                    "UPDATE webhook_subscriptions SET target_url=$1, event_type=$2, enabled=$3 WHERE agent_id=$4 RETURNING *",
-                    [webhook.target_url, webhook.event_type, webhook.enabled, id]
-                )
-
-                if (webhookresponse.rowCount == 0) {
-                    res.status(400).json({ message: "Failed to update webhook", suc: false });
-                    await client.query("ROLLBACK");
+            // Check if name already exists for another agent
+            if (name !== agentData.name) {
+                const existingAgent = await client.query(
+                    `SELECT agent_id FROM agents WHERE name=$1 AND created_by=$2 AND agent_id != $3`,
+                    [name, context.user_id, id]
+                );
+                if (existingAgent.rowCount > 0) {
+                    res.status(409).json({
+                        message: "An agent with this name already exists",
+                        suc: false
+                    });
                     return;
                 }
             }
 
+            await client.query("BEGIN");
+
+            let folderId = agentData.target_folder;
+            let pathChanged = false;
+
+            // Update path if changed
+            if (path != agentData.path) {
+                folderId = await pathResolver(path, context.user_id);
+                pathChanged = true;
+
+                await client.query(
+                    `UPDATE agents SET name=$1, scopes=$2, path=$3, target_folder=$4 WHERE created_by=$5 AND agent_id=$6`,
+                    [name, scopes, path, folderId, context.user_id, id]
+                );
+            } else {
+                await client.query(
+                    `UPDATE agents SET name=$1, scopes=$2 WHERE created_by=$3 AND agent_id=$4`,
+                    [name, scopes, context.user_id, id]
+                );
+            }
+
+            // Handle webhook subscription based on conditions
+            const hasWebhookData = webhook && webhook.target_url && webhook.target_url.trim() !== '';
+            const existingWebhookId = agentData.webhook_id;
+
+            if (hasWebhookData) {
+                // Case 1: Webhook data provided with valid target_url - Create or Update
+                const eventType = webhook.event_type || agentData.event_type || 'file.uploaded';
+                const enabled = webhook.enabled !== undefined ? webhook.enabled : true;
+
+                if (existingWebhookId) {
+                    // Update existing webhook
+                    await client.query(
+                        `UPDATE webhook_subscriptions 
+                     SET target_url = $1, 
+                         target_folder = $2, 
+                         event_type = $3, 
+                         enabled = $4
+                     WHERE agent_id = $5`,
+                        [webhook.target_url.trim(), folderId, eventType, enabled, id]
+                    );
+                } else {
+                    // Create new webhook subscription
+                    await client.query(
+                        `INSERT INTO webhook_subscriptions 
+                     (agent_id, user_id, target_folder, event_type, target_url, enabled) 
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                        [id, context.user_id, folderId, eventType, webhook.target_url.trim(), enabled]
+                    );
+                }
+            } else if (existingWebhookId) {
+                // Case 2: No valid webhook data but webhook exists - Delete it
+                await client.query(
+                    `DELETE FROM webhook_subscriptions WHERE agent_id = $1`,
+                    [id]
+                );
+            }
+            // Case 3: No valid webhook data and no webhook exists - Do nothing
+
             await client.query("COMMIT");
-            res.status(200).json({ message: "Agent configurations updated successfully", suc: true });
+
+            // Fetch updated agent with webhook details for response
+            const updatedAgent = await client.query(
+                `SELECT 
+                a.agent_id, 
+                a.name, 
+                a.scopes, 
+                a.path,
+                json_build_object(
+                    'target_url', w.target_url,
+                    'enabled', w.enabled,
+                    'event_type', w.event_type
+                ) AS webhook
+             FROM agents a
+             LEFT JOIN webhook_subscriptions w ON a.agent_id = w.agent_id
+             WHERE a.agent_id = $1`,
+                [id]
+            );
+
+            res.status(200).json({
+                message: "Agent configurations updated successfully",
+                suc: true,
+                data: updatedAgent.rows[0]
+            });
             return;
         }
         catch (error) {
