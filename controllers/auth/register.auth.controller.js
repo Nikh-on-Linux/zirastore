@@ -68,7 +68,7 @@ class Register {
             const folderId = await pathResolver(path, user_id);
 
             const result = await client.query(
-                "INSERT INTO agents(name, created_by, scopes, target_folder, path) VALUES($1, $2, $3, $4, $5) RETURNING *",
+                "INSERT INTO agents(name, created_by, scopes, target_folder, path) VALUES(TRIM($1), $2, $3, $4, $5) RETURNING *",
                 [name, user_id, scopes, folderId, path]
             );
 

@@ -255,8 +255,8 @@ class UserControlls {
                 const folderId = await pathResolver(path, context.user_id);
 
                 await client.query(
-                    `UPDATE agents SET name=$1, scopes=$2, path=$3, target_folder=$4 WHERE created_by=$5`,
-                    [name, scopes, path, folderId, context.user_id]
+                    `UPDATE agents SET name=$1, scopes=$2, path=$3, target_folder=$4 WHERE created_by=$5 and agent_id=$6`,
+                    [name, scopes, path, folderId, context.user_id, id]
                 )
 
                 if (webhook) {
@@ -279,8 +279,8 @@ class UserControlls {
             }
 
             await client.query(
-                `UPDATE agents SET name=$1, scopes=$2 WHERE created_by=$3`,
-                [name, scopes, context.user_id]
+                `UPDATE agents SET name=$1, scopes=$2 WHERE created_by=$3 AND agent_id=$4`,
+                [name, scopes, context.user_id, id]
             )
 
             if (webhook) {
@@ -301,6 +301,7 @@ class UserControlls {
             return;
         }
         catch (error) {
+            console.log(error);
             res.status(500).json({ message: `Internal server error: ${error.message}`, suc: false });
             await client.query("ROLLBACK");
         }
