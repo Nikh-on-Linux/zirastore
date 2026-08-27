@@ -351,9 +351,9 @@ export async function completeUpload(req, res) {
 
         await client.query("BEGIN");
 
-        await client.query(
+        const fileInsertResponse = await client.query(
             `INSERT INTO files(user_id, object_name, filename, mimetype, folder_id, file_size)
-             VALUES($1,$2,$3,$4,$5,$6)`,
+             VALUES($1,$2,$3,$4,$5,$6) RETURNING folder_id, file_id`,
             [
                 upload.user_id,
                 objectId,
@@ -368,6 +368,24 @@ export async function completeUpload(req, res) {
             `UPDATE uploads SET status='completed' WHERE upload_id=$1`,
             [uploadId]
         );
+
+        const webHookRes = await client.query(
+            `SELECT * FROM webhook_subscriptions WHERE user_id=$1 AND enabled=true AND target_folder=$2`,
+            [uploadRes.rows[0].user_id, uploadRes.rows[0].folder_id]
+        );
+
+        webHookRes.rows.forEach(async (row) => {
+            await client.query(
+                `INSERT INTO webhook_events(subscription_id, event_type, payload) VALUES($1, $2, $3)`,
+                [row.id, row.event_type, JSON.stringify({
+                    filename:upload.filename,
+                    fileId:fileInsertResponse.rows[0].file_id,
+                    folderId:upload.folder_id,
+                    message:"File uploaded",
+                    suc:true
+                }) ]
+            )
+        })
 
         await client.query("COMMIT");
 

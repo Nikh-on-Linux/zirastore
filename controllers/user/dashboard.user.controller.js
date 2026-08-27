@@ -176,7 +176,18 @@ class Dashboard {
         const client = await pool.connect();
         try {
             const response = await client.query(
-                `SELECT agent_id, name, scopes, path FROM agents WHERE created_by=$1 ORDER BY name ASC`,
+                `SELECT 
+                a.agent_id, 
+                a.name, 
+                a.scopes, 
+                a.path,
+                w.target_url,
+                w.enabled,
+                w.event_type
+                FROM agents a
+                LEFT JOIN webhook_subscriptions w ON a.agent_id = w.agent_id
+                WHERE a.created_by = $1
+                ORDER BY a.name ASC;`,
                 [user_id]
             )
 
@@ -208,33 +219,33 @@ class Dashboard {
 
         const client = await pool.connect();
         try {
-            const folderId = await pathResolver(path,context.user_id);
+            const folderId = await pathResolver(path, context.user_id);
 
             const folders = await client.query(
                 `SELECT folder_id, folder_name, created_at FROM folders WHERE parent_id=$1 and user_id=$2 and is_root!=true ORDER BY folder_name ASC`,
-                [folderId,context.user_id]
+                [folderId, context.user_id]
             );
 
             const files = await client.query(
                 `SELECT filename, file_id, mimetype, encoding, file_size, created_at FROM files WHERE user_id=$1 and folder_id=$2 ORDER BY filename ASC`,
-                [context.user_id,folderId]
+                [context.user_id, folderId]
             )
 
             res.status(200).json(
                 {
-                    message:"Directory fetched successfully",
-                    suc:true,
-                    data:{
+                    message: "Directory fetched successfully",
+                    suc: true,
+                    data: {
                         folders: folders.rows,
                         files: files.rows
                     }
                 }
             )
         }
-        catch(error){
-            res.status(500).json({message:`Internal server error:${error.message}`,suc:false});
+        catch (error) {
+            res.status(500).json({ message: `Internal server error:${error.message}`, suc: false });
         }
-        finally{
+        finally {
             await client.release();
         }
     }

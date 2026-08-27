@@ -94,8 +94,8 @@ class Register {
 
             if (webhook) {
                 const webhookResult = await client.query(
-                    "INSERT INTO webhook_subscriptions(agent_id, target_folder, event_type, target_url, enabled) VALUES($1, $2, $3, $4, $5)",
-                    [result.rows[0].agent_id, folderId, webhook.event_type, webhook.target_url, webhook.enabled]
+                    "INSERT INTO webhook_subscriptions(agent_id, target_folder, event_type, target_url, enabled, user_id) VALUES($1, $2, $3, $4, $5, $6)",
+                    [result.rows[0].agent_id, folderId, webhook.event_type, webhook.target_url, webhook.enabled, user_id]
                 );
 
                 if (webhookResult.rowCount == 0) {

@@ -10,7 +10,7 @@ CREATE TABLE uploads (
     recieved_chunks INTEGER,
     status VARCHAR(50) DEFAULT 'initiated',
     created_at TIMESTAMPTZ DEFAULT now(),
-    CONSTRAINT uploads_filename_folder_id_unique UNIQUE (filename, folder_id)
+    CONSTRAINT uploads_filename_folder_id_unique UNIQUE (filename, folder_id, user_id)
 );
 
 CREATE TABLE upload_parts (

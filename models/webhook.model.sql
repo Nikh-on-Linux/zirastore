@@ -1,6 +1,7 @@
 CREATE TABLE webhook_subscriptions (
     id             SERIAL PRIMARY KEY,
     agent_id       INTEGER NOT NULL REFERENCES agents(agent_id) ON DELETE CASCADE,
+    user_id        INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     target_folder  UUID NOT NULL REFERENCES folders(folder_id) ON DELETE CASCADE,
     event_type     TEXT NOT NULL,        -- e.g. 'file.uploaded'
     target_url     TEXT NOT NULL,

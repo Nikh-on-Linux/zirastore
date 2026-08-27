@@ -26,5 +26,10 @@ router.post("/move/file/:filename", FileSchemaCheck.moveFileSchemaCheck, agentVe
 router.post("/rename/file/:filename", FileSchemaCheck.renameFileSchemaCheck, agentVerification, UserControlls.renameFile);
 router.post("/rename/folder", FileSchemaCheck.renameFolderSchemaCheck, agentVerification, UserControlls.renameFolder);
 router.post("/directory",agentVerification,Dashboard.showDirectory);
+// testing callback
+router.post('/webhook/callback',(req,res)=>{
+    res.status(200).json({message:"Got your response", data:req.body})
+    console.log(req.body);
+})
 
 export default router;
