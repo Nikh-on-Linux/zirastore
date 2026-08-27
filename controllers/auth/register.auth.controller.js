@@ -50,7 +50,7 @@ class Register {
     // TODO: Google provider & Microsoft Provider
 
     async agent(req, res, next) {
-        const { name, path, scopes, context } = req.body;
+        const { name, path, scopes, context, webhook } = req.body; //webhook ={target_url, enable}
 
         if (context.type == "agent") {
             res.status(403).json({ message: "Request denied: Agents cannot create other agents.", suc: false });
@@ -74,7 +74,7 @@ class Register {
 
             if (result.rowCount == 0) {
                 await client.query("ROLLBACK");
-                res.status(500).json({ message: "Failed to register agent", success: false });
+                res.status(500).json({ message: "Failed to register agent", suc: false });
                 return;
             }
 
@@ -88,27 +88,45 @@ class Register {
 
             if (insertApi.rowCount == 0) {
                 await client.query("ROLLBACK");
-                res.status(500).json({ message: "Failed to generate API key", success: false });
+                res.status(500).json({ message: "Failed to generate API key", suc: false });
                 return;
             }
 
+            if (webhook) {
+                const webhookResult = await client.query(
+                    "INSERT INTO webhook_subscriptions(agent_id, target_folder, event_type, target_url, enabled) VALUES($1, $2, $3, $4, $5)",
+                    [result.rows[0].agent_id, folderId, webhook.event_type, webhook.target_url, webhook.enabled]
+                );
+
+                if (webhookResult.rowCount == 0) {
+                    await client.query("ROLLBACK");
+                    res.status(500).json({ message: "Failed to register webhook", suc: false });
+                    return;
+                }
+
+                await client.query("COMMIT");
+                res.status(201).json({ message: "Agent created successfully", suc: true, agent: result.rows[0], webhook: webhookResult.rows[0] });
+                return;
+            }
+
+
             await client.query("COMMIT");
 
-            res.status(201).json({ success: true, agent: result.rows[0], apiKey: apikey.fullKey });
+            res.status(201).json({ message: "Agent created successfully", suc: true, agent: result.rows[0] });
         } catch (err) {
             await client.query("ROLLBACK");
 
             switch (err.code) {
                 case "23505": // unique_violation
-                    res.status(409).json({ message: "Agent already exists", success: false });
+                    res.status(409).json({ message: "Agent already exists", suc: false });
                     break;
 
                 case "23503": // foreign_key_violation (e.g. invalid user_id)
-                    res.status(400).json({ message: "One of the reference does not exist", success: false });
+                    res.status(400).json({ message: "One of the reference does not exist", suc: false });
                     break;
 
                 case "23502": // not_null_violation
-                    res.status(400).json({ message: `Missing required field: ${err.column}`, success: false });
+                    res.status(400).json({ message: `Missing required field: ${err.column}`, suc: false });
                     break;
 
                 case "23514": // check_violation
@@ -117,7 +135,7 @@ class Register {
 
                 default:
                     console.error(err);
-                    res.status(500).json({ message: `Internal server error: ${err.message}`, success: false });
+                    res.status(500).json({ message: `Internal server error: ${err.message}`, suc: false });
                     break;
             }
         } finally {

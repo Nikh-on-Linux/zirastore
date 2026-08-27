@@ -20,7 +20,8 @@ const executionOrder = [
     "folder.model.sql",      // Depends on: users
     "file.model.sql",        // Depends on: users, folders
     "uploads.model.sql",      // Depends on: users, folders
-    "agents.modification.model.sql" // Inserts a column
+    "agents.modification.model.sql", // Inserts a column
+    "webhook.model.sql"
 ];
 
 async function executeModelFile(filename) {

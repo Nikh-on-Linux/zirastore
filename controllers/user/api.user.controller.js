@@ -227,7 +227,7 @@ class UserControlls {
     }
 
     async editAgent(req, res) {
-        const { context, name, scopes, path } = req.body;
+        const { context, name, scopes, path, webhook } = req.body;
         const { id } = req.params;
 
         if (context.type == "agent") {
@@ -249,6 +249,7 @@ class UserControlls {
 
             await client.query("BEGIN");
 
+
             if (path != agent.rows[0].path) {
 
                 const folderId = await pathResolver(path, context.user_id);
@@ -258,6 +259,19 @@ class UserControlls {
                     [name, scopes, path, folderId, context.user_id]
                 )
 
+                if (webhook) {
+                    const webhookresponse = await client.query(
+                        "UPDATE webhook_subscriptions SET target_url=$1, target_folder=$2, event_type=$3, enabled=$4 WHERE agent_id=$5 RETURNING *",
+                        [webhook.target_url, folderId, webhook.event_type, webhook.enabled, id]
+                    )
+
+                    if (webhookresponse.rowCount == 0) {
+                        res.status(400).json({ message: "Failed to update webhook", suc: false });
+                        await client.query("ROLLBACK");
+                        return;
+                    }
+                }
+
                 await client.query("COMMIT");
 
                 res.status(200).json({ message: "Agent configurations updated successfully", suc: true });
@@ -265,9 +279,22 @@ class UserControlls {
             }
 
             await client.query(
-                `UPDATE agents SET name=$1, scopes=$2, path=$3 WHERE created_by=$4`,
-                [name, scopes, path, context.user_id]
+                `UPDATE agents SET name=$1, scopes=$2 WHERE created_by=$3`,
+                [name, scopes, context.user_id]
             )
+
+            if (webhook) {
+                const webhookresponse = await client.query(
+                    "UPDATE webhook_subscriptions SET target_url=$1, event_type=$2, enabled=$3 WHERE agent_id=$4 RETURNING *",
+                    [webhook.target_url, webhook.event_type, webhook.enabled, id]
+                )
+
+                if (webhookresponse.rowCount == 0) {
+                    res.status(400).json({ message: "Failed to update webhook", suc: false });
+                    await client.query("ROLLBACK");
+                    return;
+                }
+            }
 
             await client.query("COMMIT");
             res.status(200).json({ message: "Agent configurations updated successfully", suc: true });
@@ -297,11 +324,11 @@ class UserControlls {
 
             const agent = await client.query(
                 `SELECT agent_id FROM agents WHERE created_by=$1 and agent_id=$2`,
-                [context.user_id,id]
+                [context.user_id, id]
             );
 
-            if(agent.rowCount == 0){
-                res.status(404).json({message:"Agent not found",suc:false});
+            if (agent.rowCount == 0) {
+                res.status(404).json({ message: "Agent not found", suc: false });
                 return;
             }
 
@@ -318,13 +345,18 @@ class UserControlls {
                 `DELETE FROM agents WHERE agent_id=$1`,
                 [agentId]
             );
-        
+
+            await client.query(
+                `DELETE FROM webhook_subscriptions WHERE agent_id=$1`,
+                [agentId]
+            )
+
             await client.query("COMMIT");
             res.status(200).json({ message: "Agent deleted successfully", suc: true });
         }
-        catch(error){
+        catch (error) {
             await client.query("ROLLBACK");
-            switch (error.code){
+            switch (error.code) {
                 case '23503':
                     res.status(409).json({ message: "Cannot delete agent: referenced by other records", suc: false });
                     break;
