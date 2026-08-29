@@ -492,6 +492,8 @@ class UserControlls {
             await client.query("BEGIN");
             await client.query("DELETE FROM files WHERE file_id=$1 AND user_id=$2 AND folder_id=$3", [fileId, context.user_id, folderId]);
             await client.query("COMMIT");
+
+            req.status(200).json({message:"File deleted successfully", suc:true});
         }
         catch (error) {
             await client.query("ROLLBACK");
