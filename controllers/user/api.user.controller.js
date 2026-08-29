@@ -1,5 +1,7 @@
 import { pool } from "../../configs/database.config.js";
+import { getFinalObjectPath } from "../../configs/utils/storage.util.config.js";
 import { pathResolver } from "../file/chunkupload.file.controller.js";
+import fs from "fs/promises"
 
 class UserControlls {
 
@@ -450,6 +452,52 @@ class UserControlls {
                 default:
                     res.status(500).json({ message: `Internal server error: ${error.message}`, suc: false });
             }
+        }
+        finally {
+            client.release();
+        }
+    }
+
+    async deleteFile(req, res) {
+        const { context, path } = req.body;
+        const { fileId } = req.params;
+
+        if (context.type == "agent" && !context.scopes.includes("w")) {
+            res.status(403).json({ message: "Forbidden key: Insufficient access rights", suc: false });
+            return;
+        }
+
+        if (!filename || !path) {
+            res.status(401).json({ message: "Invalid input data", suc: false });
+            return;
+        }
+
+        const client = await pool.connect();
+        try {
+            const folderId = await pathResolver(path, context.user_id);
+            const fileResponse = await client.query(
+                `SELECT object_name FROM files WHERE user_id=$1 AND folder_id=$2 AND file_id=$3`,
+                [context.user_id, folderId, fileId]
+            );
+
+            if (fileResponse.rowCount == 0) {
+                res.status(404).json({ message: "No file found", suc: false });
+                return;
+            }
+
+            const objectPath = getFinalObjectPath(fileResponse.rows[0].object_id);
+
+            await fs.unlink(objectPath);
+
+            await client.query("BEGIN");
+            await client.query("DELETE FROM files WHERE file_id=$1 AND user_id=$2 AND folder_id=$3", [fileId, context.user_id, folderId]);
+            await client.query("COMMIT");
+        }
+        catch (error) {
+            await client.query("ROLLBACK");
+            res.status(500).json({ message: `Internal Server Error:${error.message}`, suc: false });
+            console.log(error.message);
+            return;
         }
         finally {
             client.release();

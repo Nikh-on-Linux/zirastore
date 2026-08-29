@@ -105,14 +105,14 @@ class Register {
                 }
 
                 await client.query("COMMIT");
-                res.status(201).json({ message: "Agent created successfully", suc: true, agent: result.rows[0], webhook: webhookResult.rows[0] });
+                res.status(201).json({ message: "Agent created successfully", suc: true, agent: result.rows[0], webhook: webhookResult.rows[0], apikey: apikey.fullKey });
                 return;
             }
 
 
             await client.query("COMMIT");
 
-            res.status(201).json({ message: "Agent created successfully", suc: true, agent: result.rows[0] });
+            res.status(201).json({ message: "Agent created successfully", suc: true, agent: result.rows[0], apikey: apikey.fullKey });
         } catch (err) {
             await client.query("ROLLBACK");
 

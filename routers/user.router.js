@@ -25,6 +25,7 @@ router.post("/move/folder", FileSchemaCheck.moveFolderSchemaCheck, agentVerifica
 router.post("/move/file/:filename", FileSchemaCheck.moveFileSchemaCheck, agentVerification, UserControlls.moveFile);
 router.post("/rename/file/:filename", FileSchemaCheck.renameFileSchemaCheck, agentVerification, UserControlls.renameFile);
 router.post("/rename/folder", FileSchemaCheck.renameFolderSchemaCheck, agentVerification, UserControlls.renameFolder);
+router.delete("/file/:fileId",agentVerification,UserControlls.deleteFile)
 router.post("/directory",agentVerification,Dashboard.showDirectory);
 // testing callback
 router.post('/webhook/callback',(req,res)=>{
