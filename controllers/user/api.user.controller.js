@@ -496,7 +496,7 @@ class UserControlls {
         catch (error) {
             await client.query("ROLLBACK");
             res.status(500).json({ message: `Internal Server Error:${error.message}`, suc: false });
-            console.log(error.message);
+            console.log(error);
             return;
         }
         finally {
