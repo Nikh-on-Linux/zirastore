@@ -467,7 +467,7 @@ class UserControlls {
             return;
         }
 
-        if (!filename || !path) {
+        if (!fileId || !path) {
             res.status(401).json({ message: "Invalid input data", suc: false });
             return;
         }
