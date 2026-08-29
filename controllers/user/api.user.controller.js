@@ -485,7 +485,7 @@ class UserControlls {
                 return;
             }
 
-            const objectPath = getFinalObjectPath(fileResponse.rows[0].object_id);
+            const objectPath = getFinalObjectPath(fileResponse.rows[0].object_name);
 
             await fs.unlink(objectPath);
 
