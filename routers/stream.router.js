@@ -8,7 +8,7 @@ const router = Router();
 router.use(express.json());
 
 router.get('/', (req, res) => { res.send("Streaming Endpoint") });
-router.get('/:filename', agentVerification, StreamFile.fileInfo);
+router.get('/:fileId', agentVerification, StreamFile.fileInfo);
 router.get('/file/:object', StreamFile.stream) //Need to improve security.
 
 export default router;
