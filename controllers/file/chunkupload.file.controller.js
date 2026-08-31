@@ -201,7 +201,7 @@ export async function uploadPart(req, res) {
     }
 }
 
-export async function deleteUpload() {
+export async function deleteUpload(req, res) {
     const { context } = req.body;
     const { uploadId } = req.params;
     try {
@@ -216,20 +216,21 @@ export async function deleteUpload() {
 
         await pool.query("BEGIN");
 
-        const partsInfo = await pool.query(`SELECT * FROM upload_parts WHERE upload_id=$1`, [uploadId]);
+        const partsInfo = await pool.query(`SELECT file_path FROM upload_parts WHERE upload_id=$1`, [uploadId]);
 
         if (partsInfo.rowCount == 0) {
             res.status(404).json({ message: "Upload information not found", suc: false });
             return;
         }
 
-        const partId = [...partsInfo.rows];
+        const folderPath = partsInfo.rows[0].file_path.split("/").slice(0, -1).join("/");
 
-        partId.forEach(async (part) => {
-            await fsPromise.unlink(part.file_path);
-        })
+        await fsPromise.rm(folderPath, { recursive: true });
+
 
         await pool.query(`DELETE FROM upload_parts WHERE upload_id=$1 `, [uploadId]);
+
+        await pool.query(`DELETE FROM uploads WHERE upload_id=$1`, [uploadId]);
 
         await pool.query("COMMIT");
 
