@@ -20,7 +20,7 @@ class StreamFile {
                 return;
             }
 
-            res.status(200).json({ message: "File found", success: true, data: { object_name: dbResponse.rows[0].object_name, filename:dbResponse.rows[0].filename, mimetype: dbResponse.rows[0].mimetype } })
+            res.status(200).json({ message: "File found", suc: true, data: { object_name: dbResponse.rows[0].object_name, filename:dbResponse.rows[0].filename, mimetype: dbResponse.rows[0].mimetype } })
         }
         catch (e) {
             console.log(e);
