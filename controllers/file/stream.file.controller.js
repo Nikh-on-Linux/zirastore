@@ -37,72 +37,77 @@ class StreamFile {
 
     async stream(req, res) {
         const { object } = req.params;
+        const { download } = req.query; // ?download=1 -> force attachment; default -> inline
+
         const filePath = await getFinalObjectPath(object);
         const client = await pool.connect();
         try {
             const dbResponse = await client.query(
                 "SELECT * FROM files WHERE object_name=$1",
                 [object]
-            )
+            );
 
             if (dbResponse.rowCount == 0) {
                 res.status(404).json({ message: "File not found", success: false });
                 return;
             }
 
+            const file = dbResponse.rows[0];
+            const dispositionType = download ? "attachment" : "inline";
+            const safeName = encodeURIComponent(file.filename);
+            const disposition = `${dispositionType}; filename="${file.filename}"; filename*=UTF-8''${safeName}`;
+
             const range = req.headers.range;
 
             if (!range) {
                 res.writeHead(200, {
-                    "Content-Length": dbResponse.rows[0].file_size,
-                    "Content-Type": dbResponse.rows[0].mimetype,
+                    "Content-Length": file.file_size,
+                    "Content-Type": file.mimetype,
                     "Accept-Ranges": "bytes",
-                    "Content-Disposition": `attachment; filename="${object}"`,
-                    "Content-Name": dbResponse.rows[0].filename
+                    "Content-Disposition": disposition,
                 });
-
                 fs.createReadStream(filePath).pipe(res);
                 return;
             }
 
             const parts = range.replace(/bytes=/, "").split("-");
-            const start = parseInt(parts[0], 10);
-            const end = parts[1]
-                ? parseInt(parts[1], 10)
-                : dbResponse.rows[0].file_size - 1;
+            let start = parts[0] ? parseInt(parts[0], 10) : NaN;
+            let end = parts[1] ? parseInt(parts[1], 10) : NaN;
 
-            if (start >= dbResponse.rows[0].file_size || end >= dbResponse.rows[0].file_size) {
-                return res.status(416).json({message:"Range not satisfied", success:false});
+            if (isNaN(start) && !isNaN(end)) {
+                // suffix range, "bytes=-500" -> last 500 bytes
+                start = Math.max(file.file_size - end, 0);
+                end = file.file_size - 1;
+            } else if (!isNaN(start) && isNaN(end)) {
+                end = file.file_size - 1;
+            }
+
+            if (isNaN(start) || isNaN(end) || start > end || start < 0 || end >= file.file_size) {
+                res.set("Content-Range", `bytes */${file.file_size}`);
+                return res.status(416).json({ message: "Range not satisfiable", success: false });
             }
 
             const chunkSize = end - start + 1;
 
             res.writeHead(206, {
-                "Content-Range": `bytes ${start}-${end}/${dbResponse.rows[0].file_size}`,
+                "Content-Range": `bytes ${start}-${end}/${file.file_size}`,
                 "Accept-Ranges": "bytes",
                 "Content-Length": chunkSize,
-                "Content-Type": "application/octet-stream",
+                "Content-Type": file.mimetype,
+                "Content-Disposition": disposition,
             });
 
             const stream = fs.createReadStream(filePath, { start, end });
             stream.pipe(res);
-
-            res.on('close',()=>{
-                stream.destroy();
-            })
-
-            return;
-
+            res.on('close', () => stream.destroy());
         }
         catch (err) {
             console.log(err);
             res.status(500).json({ message: "Internal server error", success: false });
         }
         finally {
-            await client.release();
+            client.release();
         }
-
-
     }
 }
 
