@@ -6,17 +6,13 @@ import fs from "fs";
 class StreamFile {
 
     async fileInfo(req, res) {
-        const { user_id, path } = req.body;
-        const { filename } = req.params;
-
-        const folderId = await pathResolver(path || "/", user_id);
+        const { fileId } = req.params;
 
         const client = await pool.connect();
-        console.log(folderId);
         try {
             const dbResponse = await client.query(
-                'SELECT object_name FROM files WHERE user_id=$1 and filename=$2 and folder_id=$3',
-                [user_id, filename, folderId]
+                'SELECT object_name, filename, mimetype FROM files WHERE file_id=$1',
+                [fileId]
             )
 
             if (dbResponse.rowCount == 0) {
@@ -24,7 +20,7 @@ class StreamFile {
                 return;
             }
 
-            res.status(200).json({ message: "File found", success: true, data: { object_name: dbResponse.rows[0].object_name } })
+            res.status(200).json({ message: "File found", success: true, data: { object_name: dbResponse.rows[0].object_name, filename:dbResponse.rows[0].filename, mimetype: dbResponse.rows[0].mimetype } })
         }
         catch (e) {
             console.log(e);
