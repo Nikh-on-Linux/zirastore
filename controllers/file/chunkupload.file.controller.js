@@ -392,6 +392,15 @@ export async function completeUpload(req, res) {
 
         // cleanup temp directory
         fs.rmSync(getTmpUploadDir(uploadId), { recursive: true, force: true });
+        await client.query("BEGIN")
+        await client.query(
+            `DELETE FROM uploads WHERE upload_id=$1`,
+            [uploadId]
+        )
+
+        await client.query("DELETE FROM upload_parts WHERE upload_id=$1",[uploadId]);
+
+        await client.query("COMMIT");
 
         res.status(200).json({
             message: "Upload completed",
